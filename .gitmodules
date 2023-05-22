@@ -1,0 +1,3 @@
+[submodule "liquibook"]
+	path = liquibook
+	url = git@github.com:/jmjatlanta/liquibook
