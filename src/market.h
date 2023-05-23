@@ -3,20 +3,30 @@
  * The main market object
  */
 
-#include "Order.h"
+#include "order.h"
 #include <book/depth_order_book.h>
+#include <book/types.h>
 
 #include <memory>
 #include <map>
 #include <string>
+#include <cstdint>
+#include <atomic>
+#include <mutex>
 
 namespace latinex
 {
 
+template<typename E>
+constexpr typename std::underlying_type<E>::type to_underlying(E e) noexcept {
+    return static_cast<typename std::underlying_type<E>::type>(e);
+}
+
+typedef std::shared_ptr<Order> OrderPtr;
 typedef liquibook::book::OrderBook<OrderPtr> OrderBook;
 typedef std::shared_ptr<OrderBook> OrderBookPtr;
 typedef liquibook::book::DepthOrderBook<OrderPtr> DepthOrderBook;
-typedef std::shared_ptr<DepthORderBook> DepthOrderBookPtr;
+typedef std::shared_ptr<DepthOrderBook> DepthOrderBookPtr;
 typedef liquibook::book::Depth<> BookDepth;
 
 class Market :
@@ -27,7 +37,6 @@ class Market :
         public liquibook::book::DepthListener<DepthOrderBook> // when something happens to the depth
 {
     typedef std::map<std::string, OrderPtr> OrderMap;
-    typedef std::map<std::string, OrderBookPtr> SymbolToBookMap;
 
 public:
     Market();
@@ -115,12 +124,37 @@ public:
     /****
      * @brief add an order to the book
      * @param order the new order
+     * @returns true if order was submitted (only basic validation completed)
      */
-    void add_order(const Order& order);
+    bool add_order(OrderPtr order);
 
-    void cancel_order(const Order& order);
+    bool cancel_order(OrderPtr order);
 
-    void modify_order(const Order& order);
+    bool modify_order(OrderPtr order);
+
+    /****
+     * @brief set to true to create a new book when a new symbol comes in
+     * @param in the value for the flag
+     */
+    void add_books_as_needed(bool in);
+
+    /***
+     * Add a new market book
+     * @param symbol the unique symbol
+     * @param force TRUE to ignore addBooksAsNeeded flag
+     */
+    OrderBook& add_book(const std::string& in, bool force = false);
+
+private:
+    OrderBook& get_book(const std::string& symbol, bool depth_book);
+private:
+    static constexpr liquibook::book::OrderConditions AON = to_underlying(liquibook::book::oc_all_or_none);
+    static constexpr liquibook::book::OrderConditions IOC = to_underlying(liquibook::book::oc_immediate_or_cancel);
+    static constexpr liquibook::book::OrderConditions NOC = to_underlying(liquibook::book::oc_no_conditions);
+    std::atomic<uint32_t> orderIdSeed_ = 0;
+    std::map<std::string, OrderBook> books_;
+    bool addBooksAsNeeded = false;
+    std::mutex books_mutex_;
 };
 
 } // namespace latinex

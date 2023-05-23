@@ -1,5 +1,6 @@
 #pragma once
 
+#include <book/depth_order_book.h>
 #include <string>
 #include <vector>
 
@@ -28,7 +29,7 @@ public:
     {
         State state_;
         std::string description_;
-        StateChange() : state_(Unknown) {}
+        StateChange() : state_(State::Unknown) {}
         StateChange(State state, const std::string& desc = "") : state_(state), description_(desc) {}
     };
 
@@ -56,21 +57,24 @@ public:
     virtual bool immediate_or_cancel() const;
     std::string symbol() const;
     std::string order_id() const;
-    uint32_t quantityFilled() const;
-    uint32_t quantityRemaining() const;
-    uint32_t fillCost() const;
+    void set_order_id(const std::string& in);
+    uint32_t quantity_filled() const;
+    uint32_t quantity_remaining() const;
+    uint32_t fill_cost() const;
     const std::vector<StateChange>& history() const;
-    const StateChange& currentState() const;
+    const StateChange& current_state() const;
 
     // order lifecycle events
-    void onSubmitted();
-    void onAccepted();
-    void onRejected(const char* reason);
-    void onFilled(liquibook::book::Quantity fill_qty, liquibook::book::Cost fill_cost);
-    void onCancelRequested();
-    void onCancelled();
-    void onCancelRejected(const char* reason);
-    void onReplaceRequested(const int32_t& size_delta, liquibook::book::Price new_price);
+    virtual void on_submitted();
+    virtual void on_accepted();
+    virtual void on_rejected(const char* reason);
+    virtual void on_filled(liquibook::book::Quantity fill_qty, liquibook::book::Cost fill_cost);
+    virtual void on_cancel_requested();
+    virtual void on_cancelled();
+    virtual void on_cancel_rejected(const char* reason);
+    virtual void on_replace_requested(const int32_t& size_delta, liquibook::book::Price new_price);
+    virtual void on_replaced(const int32_t& size_delta, liquibook::book::Price new_price);
+    virtual void on_replace_rejected(const char* reason);
 
 private:
     std::string id_;
@@ -82,7 +86,7 @@ private:
     bool aon_;
     bool ioc_;
     liquibook::book::Quantity quantity_filled_;
-    int32_t quantity_remaining_
+    int32_t quantity_remaining_;
     uint32_t fill_cost_;
 
     std::vector<StateChange> history_;

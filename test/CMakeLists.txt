@@ -11,11 +11,14 @@ FetchContent_MakeAvailable(googletest)
 
 file(GLOB src
     exchange.cpp
+    ../src/market.cpp
+    ../src/order.cpp
 )
 
 add_executable(test ${src} )
 
 target_include_directories( test PRIVATE
+    ${CMAKE_SOURCE_DIR}/liquibook/src
 )
 
 target_link_libraries( test 
