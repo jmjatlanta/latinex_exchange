@@ -3,6 +3,9 @@
 #include <book/depth_order_book.h>
 #include <string>
 #include <vector>
+#include <memory>
+
+class LatinexSessionServer;
 
 namespace latinex
 {
@@ -58,6 +61,7 @@ public:
     std::string symbol() const;
     std::string order_id() const;
     void set_order_id(const std::string& in);
+    void set_fix_server(LatinexSessionServer* server);
     uint32_t quantity_filled() const;
     uint32_t quantity_remaining() const;
     uint32_t fill_cost() const;
@@ -90,6 +94,7 @@ private:
     uint32_t fill_cost_;
 
     std::vector<StateChange> history_;
+    LatinexSessionServer *server_ = nullptr;
 };
 
 } // namespace latinex

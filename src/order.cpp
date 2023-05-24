@@ -1,4 +1,7 @@
 #include "order.h"
+#include "server.h" // LatinexSessionServer
+#include "Myfix_types.hpp"
+#include "Myfix_classes.hpp"
 
 namespace latinex
 {
@@ -26,6 +29,7 @@ uint32_t Order::quantity_remaining() const { return quantity_remaining_; }
 uint32_t Order::fill_cost() const { return fill_cost_; }
 const std::vector<Order::StateChange>& Order::history() const { return history_; }
 const Order::StateChange& Order::current_state() const { return history_.back(); }
+void Order::set_fix_server(LatinexSessionServer* server) { server_ = server; }
 
 void Order::on_submitted()
 {
@@ -35,17 +39,40 @@ void Order::on_submitted()
     msg += " " + symbol_ + " @";
     msg += (price_ == 0 ? "MKT" : std::to_string(price_));
     history_.emplace_back(State::Submitted, msg);
+    if (server_ != nullptr)
+    {
+        // send execution report
+        FIX8::TEX::ExecutionReport *er(new FIX8::TEX::ExecutionReport);
+        *er << new FIX8::TEX::OrderID(id_)
+            << new FIX8::TEX::ExecType(FIX8::TEX::ExecType_NEW)
+            << new FIX8::TEX::OrdStatus(FIX8::TEX::OrdStatus_NEW)
+            << new FIX8::TEX::LeavesQty(quantity_)
+            << new FIX8::TEX::CumQty(0.)
+            << new FIX8::TEX::AvgPx(0.)
+            << new FIX8::TEX::LastCapacity('5')
+            << new FIX8::TEX::ReportToExch('Y')
+            << new FIX8::TEX::ExecID(id_);
+        server_->send(er);
+    }
 }
 
 void Order::on_accepted()
 {
     quantity_remaining_ = quantity_;
     history_.emplace_back(State::Accepted);
+    if (server_ != nullptr)
+    {
+        //TODO: send execution report
+    }
 }
 
 void Order::on_rejected(const char* reason)
 {
     history_.emplace_back(State::Rejected, reason);
+    if (server_ != nullptr)
+    {
+        //TODO: send execution report
+    }
 }
 
 void Order::on_filled(liquibook::book::Quantity fill_qty, liquibook::book::Cost fill_cost)
@@ -54,22 +81,38 @@ void Order::on_filled(liquibook::book::Quantity fill_qty, liquibook::book::Cost 
     fill_cost_ += fill_cost;
     std::string msg = std::to_string(fill_qty) + " for " + std::to_string(fill_cost);
     history_.emplace_back(State::Filled, msg);
+    if (server_ != nullptr)
+    {
+        //TODO: send execution report
+    }
 }
 
 void Order::on_cancel_requested()
 {
     history_.emplace_back(State::CancelRequested);
+    if (server_ != nullptr)
+    {
+        //TODO: send execution report
+    }
 }
 
 void Order::on_cancelled()
 {
     quantity_remaining_ = 0;
     history_.emplace_back(State::Cancelled);
+    if (server_ != nullptr)
+    {
+        //TODO: send execution report
+    }
 }
 
 void Order::on_cancel_rejected(const char* reason)
 {
     history_.emplace_back(State::CancelRejected, reason);
+    if (server_ != nullptr)
+    {
+        //TODO: send execution report
+    }
 }
 
 void Order::on_replace_requested(const int32_t& size_delta, liquibook::book::Price new_price)
@@ -80,6 +123,10 @@ void Order::on_replace_requested(const int32_t& size_delta, liquibook::book::Pri
     if (new_price != liquibook::book::PRICE_UNCHANGED)
         msg += "New Price " + std::to_string(new_price);
     history_.emplace_back(State::ModifyRequested, msg);
+    if (server_ != nullptr)
+    {
+        //TODO: send execution report
+    }
 }
 
 void Order::on_replaced(const int32_t& size_delta, liquibook::book::Price new_price)
@@ -97,11 +144,19 @@ void Order::on_replaced(const int32_t& size_delta, liquibook::book::Price new_pr
         msg += "New Price " + std::to_string(new_price);
     }
     history_.emplace_back(State::Modified, msg);
+    if (server_ != nullptr)
+    {
+        //TODO: send execution report
+    }
 }
 
 void Order::on_replace_rejected(const char* reason)
 {
     history_.emplace_back(State::ModifyRejected, reason);
+    if (server_ != nullptr)
+    {
+        //TODO: send execution report
+    }
 }
 
 } // namespace latinex
