@@ -15,6 +15,8 @@ file(GLOB src
     ../src/market.cpp
     ../src/order.cpp
     ../src/server.cpp
+    ../src/client.cpp
+    ../src/helper.cpp
     ../src/Myfix_classes.cpp
     ../src/Myfix_traits.cpp
     ../src/Myfix_types.cpp

@@ -380,7 +380,11 @@ void client_process(ClientSessionBase *mc)
 	char ch(0);
 	mymenu.get_tty().set_raw_mode();
 	save_tty = mymenu.get_tty();
-	while(!mymenu.get_istr().get(ch).bad() && !mc->has_given_up() && !term_received && ch != 0x3 && mymenu.process(ch))
+	while(!mymenu.get_istr().get(ch).bad()  // we did not get a bad char
+            && !mc->has_given_up() // the connection to the server is good
+            && !term_received // we are not terminating the program
+            && ch != 0x3 // we did not receive the EOF character
+            && mymenu.process(ch)) // process(char) does something with the character and usually returns true
 		;
 	// don't explicitly call mc->session_ptr()->stop() with reliable sessions
 	// before checking if the session is already shutdown - the framework will generally do this for you

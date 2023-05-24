@@ -49,6 +49,8 @@ public:
     Order(const std::string& id, bool buy_side, liquibook::book::Quantity quantity, const std::string& symbol,
             liquibook::book::Price price, liquibook::book::Price stopPrice, bool aon, bool ioc);
 
+    ~Order();
+
     // getters/setters
 
     bool is_limit() const;
@@ -61,7 +63,6 @@ public:
     std::string symbol() const;
     std::string order_id() const;
     void set_order_id(const std::string& in);
-    void set_fix_server(LatinexSessionServer* server);
     uint32_t quantity_filled() const;
     uint32_t quantity_remaining() const;
     uint32_t fill_cost() const;
@@ -79,6 +80,7 @@ public:
     virtual void on_replace_requested(const int32_t& size_delta, liquibook::book::Price new_price);
     virtual void on_replaced(const int32_t& size_delta, liquibook::book::Price new_price);
     virtual void on_replace_rejected(const char* reason);
+    virtual void on_fix_server_changed(LatinexSessionServer* server);
 
 private:
     std::string id_;

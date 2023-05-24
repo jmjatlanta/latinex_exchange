@@ -14,6 +14,12 @@ Order::Order(const std::string& id, bool buy_side, liquibook::book::Quantity qua
 {
 }
 
+Order::~Order()
+{
+    if (server_ != nullptr)
+        server_->unsubscribe_from_fix_events(this);
+}
+
 std::string Order::order_id() const { return id_; }
 void Order::set_order_id(const std::string& in) { id_ = in; }
 bool Order::is_limit() const { return price() != 0; }
@@ -29,10 +35,19 @@ uint32_t Order::quantity_remaining() const { return quantity_remaining_; }
 uint32_t Order::fill_cost() const { return fill_cost_; }
 const std::vector<Order::StateChange>& Order::history() const { return history_; }
 const Order::StateChange& Order::current_state() const { return history_.back(); }
-void Order::set_fix_server(LatinexSessionServer* server) { server_ = server; }
+
+void Order::on_fix_server_changed(LatinexSessionServer* server) 
+{ 
+    if (server_ != nullptr)
+        server_->unsubscribe_from_fix_events(this);
+    server_ = server; 
+    if (server_ != nullptr)
+        server_->subscribe_to_fix_events(this);
+}
 
 void Order::on_submitted()
 {
+    std::cout << "Order::on_submitted: Received event from market, sending Execution report\n";
     std::string msg;
     msg += (is_buy() ? "BUY " : "SELL ");
     msg += std::to_string(quantity_);
@@ -52,7 +67,8 @@ void Order::on_submitted()
             << new FIX8::TEX::LastCapacity('5')
             << new FIX8::TEX::ReportToExch('Y')
             << new FIX8::TEX::ExecID(id_);
-        server_->send(er);
+        if (!server_->send(er, true))
+            std::cout << "Order::on_submitted: Unable to send Execution report\n";
     }
 }
 
