@@ -153,6 +153,7 @@ private:
     static constexpr liquibook::book::OrderConditions NOC = to_underlying(liquibook::book::oc_no_conditions);
     std::atomic<uint32_t> orderIdSeed_ = 0;
     std::map<std::string, OrderBook> books_;
+    std::map<std::string, std::mutex> book_mutexes_;
     bool addBooksAsNeeded = false;
     std::mutex books_mutex_;
 };

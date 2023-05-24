@@ -89,6 +89,7 @@ OrderBook& Market::add_book(const std::string& symbol, bool force)
             desired_book.set_order_listener(this);
             desired_book.set_trade_listener(this);
             desired_book.set_order_book_listener(this);
+            book_mutexes_[symbol];
             return desired_book;
         }
     }
@@ -115,6 +116,8 @@ bool Market::add_order(OrderPtr order)
     // TODO: Add more sanity checks
     
     order->on_submitted();
+    std::mutex& mut = book_mutexes_[order->symbol()];
+    std::lock_guard<std::mutex> lock(mut);
     book.add(order, conditions);
     return true;
 }
