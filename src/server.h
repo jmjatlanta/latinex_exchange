@@ -12,7 +12,7 @@
  */
 
 class LatinexSessionServer; // declared further down
-
+namespace latinex { class Order; class Market; }
 /***
  * @brief A message router
  * @note Myfix_router, as it is in the TEX namespace, probably means it was generated
@@ -26,6 +26,7 @@ public:
 
     // NewOrderSingle message handler
     virtual bool operator()(const FIX8::TEX::NewOrderSingle* msg) const;
+    virtual bool operator()(const FIX8::TEX::Logout* msg) const;
 };
 
 class LatinexSessionServer : public FIX8::Session
@@ -42,7 +43,7 @@ public:
      * @param seqnum
      * @param msg
      */
-    bool handle_application(const unsigned seqnum, const FIX8::Message *&msg);
+    bool handle_application(const unsigned seqnum, const FIX8::Message *&msg) override;
 
     /***
      * @brief example scheduler callback function
@@ -74,7 +75,7 @@ public:
         }
     }
 
-    latinex::Market market_;
+    std::shared_ptr<latinex::Market> market_ = nullptr;
     std::vector<latinex::Order*> subscribed_orders_;
 };
 

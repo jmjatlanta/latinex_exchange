@@ -107,30 +107,40 @@ OrderBook& Market::get_book(const std::string& symbol, bool depth_book)
 
 bool Market::add_order(OrderPtr order)
 {
-    auto& book = get_book(order->symbol(), false); // a simple, non depth book
-    order->set_order_id(std::to_string(++orderIdSeed_));
+    try
+    {
+        std::string symbol = order->get<FIX8::TEX::Symbol>()->get();
+        auto& book = get_book(symbol, false); // a simple, non depth book
+        *(order) << new FIX8::TEX::OrderID(std::to_string(++orderIdSeed_));
 
-    const liquibook::book::OrderConditions conditions = 
-        (order->all_or_none() ? AON : NOC) | (order->immediate_or_cancel() ? IOC : NOC);
+        // TODO: Read this from incoming order
+        const liquibook::book::OrderConditions conditions = NOC;
 
-    // TODO: Add more sanity checks
+        // TODO: Add more sanity checks
     
-    order->on_submitted();
-    std::mutex& mut = book_mutexes_[order->symbol()];
-    std::lock_guard<std::mutex> lock(mut);
-    book.add(order, conditions);
+        order->on_submitted();
+        std::mutex& mut = book_mutexes_[symbol];
+        std::lock_guard<std::mutex> lock(mut);
+        book.add(order, conditions);
+    }
+    catch (const std::invalid_argument& ia)
+    {
+        // we don't have a book
+        order->on_rejected("Invalid Symbol");
+        return false;
+    }
     return true;
 }
 
 bool Market::cancel_order(OrderPtr order)
 {
-    get_book(order->symbol(), false).cancel(order);
+    get_book(order->get<FIX8::TEX::Symbol>()->get(), false).cancel(order);
     return true;
 }
 
 bool Market::modify_order(OrderPtr order)
 {
-    return get_book(order->symbol(), false).replace(order);
+    return get_book(order->get<FIX8::TEX::Symbol>()->get(), false).replace(order);
 }
 
 } // namespace latinex

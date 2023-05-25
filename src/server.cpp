@@ -5,8 +5,10 @@
 
 LatinexSessionServer::~LatinexSessionServer()
 {
+    // make a copy of the vector so modifications don't affect iteration
+    std::vector<latinex::Order*> cp = subscribed_orders_;
     // go through market orders and unset this server
-    for(auto o : subscribed_orders_)
+    for(auto* o : cp)
         o->on_fix_server_changed(nullptr);
 }
 
@@ -40,6 +42,12 @@ bool LatinexSessionServer::sample_scheduler_callback()
     return true;
 }
 
+bool TexRouterServer::operator() (const FIX8::TEX::Logout* msg) const
+{
+    std::cout << "TexRouterServer: Received Logoff\n";
+    return true;
+}
+
 /***
  * @brief handle an incoming NewOrderSingle
  * @param msg the message
@@ -67,14 +75,15 @@ bool TexRouterServer::operator() (const FIX8::TEX::NewOrderSingle *msg) const
             symbol = msg->get<FIX8::TEX::Symbol>()->get();
     }
     // after some validation, we should submit a new FixOrder to the exchange
-    //Order(const std::string& id, bool buy_side, liquibook::book::Quantity quantity, const std::string& symbol,
-    //             liquibook::book::Price price, liquibook::book::Price stopPrice, bool aon, bool ioc);
     std::shared_ptr<latinex::Order> ord = std::make_shared<latinex::Order>(id, buy_side, quantity, symbol,
            price, stopPrice, aon, ioc );
     LatinexSessionServer& server = static_cast<LatinexSessionServer&>(session_);
     ord->on_fix_server_changed(&server);
-    if (!server.market_.add_order(ord))
+    if (server.market_ != nullptr && !server.market_->add_order(ord))
+    {
+        ord->on_fix_server_changed(nullptr);
         std::cout << "TexRouterServer::NewOrderSingle: Unable to add order to market.\n";
+    }
     return true;
 }
 

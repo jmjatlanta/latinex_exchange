@@ -6,12 +6,13 @@
 namespace latinex
 {
 
-Order::Order(const std::string& id, bool buy_side, liquibook::book::Quantity quantity, const std::string& symbol,
-        liquibook::book::Price price, liquibook::book::Price stopPrice, bool aon, bool ioc) :
-        id_(id), buy_side_(buy_side), symbol_(symbol), quantity_(quantity), price_(price),
-        stop_price_(stopPrice), ioc_(ioc), aon_(aon), quantity_filled_(0), quantity_remaining_(0),
-        fill_cost_(0)
+Order::Order()
 {
+}
+
+Order::Order( const FIX8::TEX::NewOrderSingle& in)
+{
+    in.copy_legal(this);
 }
 
 Order::~Order()
@@ -20,19 +21,12 @@ Order::~Order()
         server_->unsubscribe_from_fix_events(this);
 }
 
-std::string Order::order_id() const { return id_; }
-void Order::set_order_id(const std::string& in) { id_ = in; }
-bool Order::is_limit() const { return price() != 0; }
-bool Order::is_buy() const { return buy_side_; }
-bool Order::all_or_none() const { return aon_; }
-bool Order::immediate_or_cancel() const { return ioc_; }
-std::string Order::symbol() const { return symbol_; }
-liquibook::book::Price Order::price() const { return price_; }
-liquibook::book::Price Order::stop_price() const { return stop_price_; }
-liquibook::book::Quantity Order::order_qty() const { return quantity_; }
-uint32_t Order::quantity_filled() const { return quantity_filled_; }
-uint32_t Order::quantity_remaining() const { return quantity_remaining_; }
-uint32_t Order::fill_cost() const { return fill_cost_; }
+std::string Order::symbol() const { return get<FIX8::TEX::Symbol>()->get(); }
+liquibook::book::Price Order::price() const { return get<FIX8::TEX::Price>()->get(); }
+liquibook::book::Price Order::stop_price() const { return 0; } // not used
+liquibook::book::Quantity Order::order_qty() const { return get<FIX8::TEX::Quantity>()->get(); }
+bool Order::is_buy() const { return get<FIX8::TEX::Side>()->get() == FIX8::TEX::Side_BUY; }
+
 const std::vector<Order::StateChange>& Order::history() const { return history_; }
 const Order::StateChange& Order::current_state() const { return history_.back(); }
 
@@ -50,20 +44,21 @@ void Order::on_submitted()
     std::cout << "Order::on_submitted: Received event from market, sending Execution report\n";
     std::string msg;
     msg += (is_buy() ? "BUY " : "SELL ");
-    msg += std::to_string(quantity_);
-    msg += " " + symbol_ + " @";
-    msg += (price_ == 0 ? "MKT" : std::to_string(price_));
+    msg += std::to_string(order_qty());
+    msg += " " + symbol() + " @";
+    msg += (price() == 0 ? "MKT" : std::to_string(price()));
     history_.emplace_back(State::Submitted, msg);
     if (server_ != nullptr)
     {
         // send execution report
         FIX8::TEX::ExecutionReport *er(new FIX8::TEX::ExecutionReport);
-        *er << new FIX8::TEX::OrderID(id_)
-            << new FIX8::TEX::ExecType(FIX8::TEX::ExecType_NEW)
+        copy_legal(er);
+        *er << new FIX8::TEX::ExecType(FIX8::TEX::ExecType_NEW) 
             << new FIX8::TEX::OrdStatus(FIX8::TEX::OrdStatus_NEW)
             << new FIX8::TEX::LeavesQty(quantity_)
             << new FIX8::TEX::CumQty(0.)
             << new FIX8::TEX::AvgPx(0.)
+            << new FIX8::TEX::Side(FIX8::TEX::Side_BUY)
             << new FIX8::TEX::LastCapacity('5')
             << new FIX8::TEX::ReportToExch('Y')
             << new FIX8::TEX::ExecID(id_);
@@ -74,6 +69,7 @@ void Order::on_submitted()
 
 void Order::on_accepted()
 {
+    std::cout << "Order::on_accepted: Received event from market, sending Execution report\n";
     quantity_remaining_ = quantity_;
     history_.emplace_back(State::Accepted);
     if (server_ != nullptr)
@@ -84,15 +80,30 @@ void Order::on_accepted()
 
 void Order::on_rejected(const char* reason)
 {
+    std::cout << "Order::on_rejected: Received event from market, sending Execution report\n";
     history_.emplace_back(State::Rejected, reason);
     if (server_ != nullptr)
     {
-        //TODO: send execution report
+        // send execution report
+        FIX8::TEX::ExecutionReport *er(new FIX8::TEX::ExecutionReport);
+        *er << new FIX8::TEX::OrderID(id_)
+            << new FIX8::TEX::ExecType(FIX8::TEX::ExecType_REJECTED)
+            << new FIX8::TEX::OrdStatus(FIX8::TEX::OrdStatus_REJECTED)
+            << new FIX8::TEX::LeavesQty(0.)
+            << new FIX8::TEX::Side(FIX8::TEX::Side_BUY)
+            << new FIX8::TEX::CumQty(0.)
+            << new FIX8::TEX::AvgPx(0.)
+            << new FIX8::TEX::LastCapacity('5')
+            << new FIX8::TEX::ReportToExch('Y')
+            << new FIX8::TEX::ExecID(id_);
+        if (!server_->send(er, true))
+            std::cout << "Order::on_submitted: Unable to send Execution report\n";
     }
 }
 
 void Order::on_filled(liquibook::book::Quantity fill_qty, liquibook::book::Cost fill_cost)
 {
+    std::cout << "Order::on_filled: Received event from market, sending Execution report\n";
     quantity_remaining_ -= fill_qty;
     fill_cost_ += fill_cost;
     std::string msg = std::to_string(fill_qty) + " for " + std::to_string(fill_cost);
@@ -105,6 +116,7 @@ void Order::on_filled(liquibook::book::Quantity fill_qty, liquibook::book::Cost 
 
 void Order::on_cancel_requested()
 {
+    std::cout << "Order::on_cancel_requested: Received event from market, sending Execution report\n";
     history_.emplace_back(State::CancelRequested);
     if (server_ != nullptr)
     {
@@ -114,6 +126,7 @@ void Order::on_cancel_requested()
 
 void Order::on_cancelled()
 {
+    std::cout << "Order::on_cancelled: Received event from market, sending Execution report\n";
     quantity_remaining_ = 0;
     history_.emplace_back(State::Cancelled);
     if (server_ != nullptr)
@@ -124,6 +137,7 @@ void Order::on_cancelled()
 
 void Order::on_cancel_rejected(const char* reason)
 {
+    std::cout << "Order::on_cancel_rejected: Received event from market, sending Execution report\n";
     history_.emplace_back(State::CancelRejected, reason);
     if (server_ != nullptr)
     {
@@ -133,6 +147,7 @@ void Order::on_cancel_rejected(const char* reason)
 
 void Order::on_replace_requested(const int32_t& size_delta, liquibook::book::Price new_price)
 {
+    std::cout << "Order::on_replace_requested: Received event from market, sending Execution report\n";
     std::string msg;
     if (size_delta != liquibook::book::SIZE_UNCHANGED)
         msg += "Quantity change: " + std::to_string(size_delta) + " ";
@@ -147,6 +162,7 @@ void Order::on_replace_requested(const int32_t& size_delta, liquibook::book::Pri
 
 void Order::on_replaced(const int32_t& size_delta, liquibook::book::Price new_price)
 {
+    std::cout << "Order::on_replaced: Received event from market, sending Execution report\n";
     std::string msg;
     if (size_delta != liquibook::book::SIZE_UNCHANGED)
     {
@@ -168,6 +184,7 @@ void Order::on_replaced(const int32_t& size_delta, liquibook::book::Price new_pr
 
 void Order::on_replace_rejected(const char* reason)
 {
+    std::cout << "Order::on_replace_rejected: Received event from market, sending Execution report\n";
     history_.emplace_back(State::ModifyRejected, reason);
     if (server_ != nullptr)
     {

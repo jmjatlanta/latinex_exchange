@@ -1,5 +1,9 @@
 #pragma once
 
+#include "server.h"
+#include <fix8/f8includes.hpp>
+#include "Myfix_types.hpp"
+#include "Myfix_classes.hpp"
 #include <book/depth_order_book.h>
 #include <string>
 #include <vector>
@@ -10,7 +14,7 @@ class LatinexSessionServer;
 namespace latinex
 {
 
-class Order
+class Order : public FIX8::TEX::NewOrderSingle
 {
 public:
     enum class State {
@@ -36,36 +40,20 @@ public:
         StateChange(State state, const std::string& desc = "") : state_(state), description_(desc) {}
     };
 
-    /***
-     * @param id a unique identifier
-     * @param buy_side true for buy, false for sell
-     * @param quantity the number of shares
-     * @param symbol the ticker symbol
-     * @param price the desired price
-     * @param stop_Price the desired stop price (not used)
-     * @param aon true if order is all or nothing
-     * @param ioc true if immediate or cancel
+    Order();
+    /**
+     * Create order from FIX NewOrderSingle
      */
-    Order(const std::string& id, bool buy_side, liquibook::book::Quantity quantity, const std::string& symbol,
-            liquibook::book::Price price, liquibook::book::Price stopPrice, bool aon, bool ioc);
+    Order(const FIX8::TEX::NewOrderSingle& orig);
 
     ~Order();
 
-    // getters/setters
-
-    bool is_limit() const;
-    bool is_buy() const;
+    // getters
+    std::string symbol() const;
     liquibook::book::Price price() const;
     liquibook::book::Price stop_price() const;
     liquibook::book::Quantity order_qty() const;
-    virtual bool all_or_none() const;
-    virtual bool immediate_or_cancel() const;
-    std::string symbol() const;
-    std::string order_id() const;
-    void set_order_id(const std::string& in);
-    uint32_t quantity_filled() const;
-    uint32_t quantity_remaining() const;
-    uint32_t fill_cost() const;
+    bool is_buy() const;
     const std::vector<StateChange>& history() const;
     const StateChange& current_state() const;
 
@@ -83,18 +71,6 @@ public:
     virtual void on_fix_server_changed(LatinexSessionServer* server);
 
 private:
-    std::string id_;
-    bool buy_side_;
-    std::string symbol_;
-    liquibook::book::Quantity quantity_;
-    liquibook::book::Price price_;
-    liquibook::book::Price stop_price_;
-    bool aon_;
-    bool ioc_;
-    liquibook::book::Quantity quantity_filled_;
-    int32_t quantity_remaining_;
-    uint32_t fill_cost_;
-
     std::vector<StateChange> history_;
     LatinexSessionServer *server_ = nullptr;
 };

@@ -11,10 +11,10 @@
 
 class MyServer
 {
-
     public:
     MyServer() : server( new FIX8::ServerSession<LatinexSessionServer>(
-                FIX8::TEX::ctx(), "../test/myfix_server.xml", "TEX1"))
+                FIX8::TEX::ctx(), "../test/myfix_server.xml", "TEX1")),
+                market_(std::make_shared<latinex::Market>())
     {
         message_thread = std::thread(&MyServer::run, this);
     }
@@ -38,14 +38,24 @@ class MyServer
     void server_process(FIX8::ServerSessionBase* srv, int scnt, bool ismulti)
     {
         std::unique_ptr<FIX8::SessionInstanceBase> inst(srv->create_server_instance());
+        LatinexSessionServer& session_server = static_cast<LatinexSessionServer&>( *inst->session_ptr() );
+        session_server.market_ = market_;
         const FIX8::ProcessModel pm(srv->get_process_model(srv->_ses));
         inst->start(pm == FIX8::pm_pipeline, 0, 0);
         if (pm != FIX8::pm_pipeline)
             while(!inst->session_ptr()->is_shutdown())
                 FIX8::hypersleep<FIX8::h_milliseconds>(100);
         // the session is finished
+        std::cout << "MyServer::server_process: Connection to client " << scnt << " finished.\n";
         inst->stop(); 
+        std::cout << "MyServer::server_process: Connection to client " << scnt << " stopped.\n";
     }
+    bool add_book(const std::string& symbol)
+    {
+        market_->add_book(symbol, true);
+        return true;
+    }
+    std::shared_ptr<latinex::Market> market_ = nullptr;
     std::thread message_thread;
     std::unique_ptr<FIX8::ServerSessionBase> server = nullptr;
     int scnt = 0;
@@ -59,7 +69,7 @@ class MyClient
                 FIX8::TEX::ctx(), "../test/myfix_client.xml", "DLD1"))
     {
         // single session reliable client
-        session_->start(false, 0, 0, session_->session_ptr()->get_login_parameters()._davi());
+        session_->start(false, 0, 0);
         message_thread = std::thread(&MyClient::client_process, this);
     }
     virtual ~MyClient()
@@ -78,9 +88,15 @@ class MyClient
         if (!session_->session_ptr()->is_shutdown())
         {
             std::shared_ptr<FIX8::TEX::Logout> msg = std::make_shared<FIX8::TEX::Logout>();
+            std::cout << "MyClient: Sending Logout\n";
             if (!send(msg.get()))
                 std::cout << "MyClient::client_process: Logout failed to send.\n";
-            session_->session_ptr()->stop();
+            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+            if (!session_->session_ptr()->is_shutdown())
+            {
+                std::cout << "MyCLient::client_process: stopping\n";
+                session_->session_ptr()->stop();
+            }
         } 
     }
     bool send(FIX8::Message* msg)
@@ -113,29 +129,49 @@ class MyClient
 TEST(Fix, createServer)
 {
     MyServer myServer;
-    std::this_thread::sleep_for(std::chrono::seconds(10));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
 }
 
 TEST(Fix, createClient)
 {
     MyClient myClient;
-    std::this_thread::sleep_for(std::chrono::seconds(3));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
 }
 
 TEST(Fix, createClientAndServer)
 {
     MyServer myServer;
-    MyClient myClient;
-    std::this_thread::sleep_for(std::chrono::seconds(3));
+    {
+        MyClient myClient;
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+    }
+    // give time to log out
+    std::cout << "createClientAndServer:: waiting for logout\n";
+    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+    std::cout << "createClientAndServer:: logout wait is over\n";
 }
 
 TEST(Fix, SendNewOrderSingle)
 {
     MyServer myServer;
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    EXPECT_TRUE(myServer.add_book("ABC"));
     MyClient myClient;
     // give it a sec
     std::this_thread::sleep_for(std::chrono::seconds(1));
     EXPECT_TRUE(myClient.send_order(true, 100, "ABC", 100));
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+}
+
+TEST(Fix, OrderMatch)
+{
+    MyServer myServer;
+    EXPECT_TRUE(myServer.add_book("ABC"));
+    MyClient myClient;
+    // give it a sec
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    EXPECT_TRUE(myClient.send_order(true, 100, "ABC", 100));
+    EXPECT_TRUE(myClient.send_order(false, 100, "ABC", 100));
     std::this_thread::sleep_for(std::chrono::seconds(3));
 }
 

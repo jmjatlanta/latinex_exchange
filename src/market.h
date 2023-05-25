@@ -22,6 +22,8 @@ constexpr typename std::underlying_type<E>::type to_underlying(E e) noexcept {
     return static_cast<typename std::underlying_type<E>::type>(e);
 }
 
+class Order;
+
 typedef std::shared_ptr<Order> OrderPtr;
 typedef liquibook::book::OrderBook<OrderPtr> OrderBook;
 typedef std::shared_ptr<OrderBook> OrderBookPtr;
