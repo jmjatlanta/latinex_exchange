@@ -71,6 +71,9 @@ public:
     virtual void on_replace_rejected(const char* reason);
     virtual void on_fix_server_changed(LatinexSessionServer* server);
 
+    std::string order_id_;
+private:
+    FIX8::TEX::ExecutionReport* build_execution_report();
 private:
     liquibook::book::Quantity quantity_;
     liquibook::book::Quantity leaves_qty_;

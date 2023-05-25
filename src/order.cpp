@@ -1,7 +1,5 @@
 #include "order.h"
 #include "server.h" // LatinexSessionServer
-#include "Myfix_types.hpp"
-#include "Myfix_classes.hpp"
 
 namespace latinex
 {
@@ -10,7 +8,7 @@ Order::Order()
 {
 }
 
-Order::Order( const FIX8::TEX::NewOrderSingle& in)
+Order::Order(const FIX8::TEX::NewOrderSingle& in)
 {
     in.copy_legal(this);
 }
@@ -24,7 +22,7 @@ Order::~Order()
 std::string Order::symbol() const { return get<FIX8::TEX::Symbol>()->get(); }
 liquibook::book::Price Order::price() const { return get<FIX8::TEX::Price>()->get(); }
 liquibook::book::Price Order::stop_price() const { return 0; } // not used
-liquibook::book::Quantity Order::order_qty() const { return quantity_; }
+liquibook::book::Quantity Order::order_qty() const { return get<FIX8::TEX::OrderQty>()->get(); }
 liquibook::book::Quantity Order::leaves_qty() const { return leaves_qty_; }
 bool Order::is_buy() const { return get<FIX8::TEX::Side>()->get() == FIX8::TEX::Side_BUY; }
 
@@ -40,6 +38,16 @@ void Order::on_fix_server_changed(LatinexSessionServer* server)
         server_->subscribe_to_fix_events(this);
 }
 
+FIX8::TEX::ExecutionReport* Order::build_execution_report()
+{
+    FIX8::TEX::ExecutionReport* er = new FIX8::TEX::ExecutionReport;
+    copy_legal(er);
+    (*er) << new FIX8::TEX::LeavesQty(leaves_qty_)
+          << new FIX8::TEX::OrderID(order_id_)
+          << new FIX8::TEX::ExecID("blah");
+    return er;
+}
+
 void Order::on_submitted()
 {
     std::cout << "Order::on_submitted: Received event from market, sending Execution report\n";
@@ -52,16 +60,13 @@ void Order::on_submitted()
     if (server_ != nullptr)
     {
         // send execution report
-        FIX8::TEX::ExecutionReport *er(new FIX8::TEX::ExecutionReport);
-        copy_legal(er);
+        auto* er = build_execution_report();
         *er << new FIX8::TEX::ExecType(FIX8::TEX::ExecType_NEW) 
-            << new FIX8::TEX::OrdStatus(FIX8::TEX::OrdStatus_NEW)
-            << new FIX8::TEX::LeavesQty(leaves_qty())
+            << new FIX8::TEX::OrdStatus(FIX8::TEX::OrdStatus_PENDING_NEW)
             << new FIX8::TEX::CumQty(0.)
             << new FIX8::TEX::AvgPx(0.)
             << new FIX8::TEX::LastCapacity('5')
-            << new FIX8::TEX::ReportToExch('Y')
-            << new FIX8::TEX::ExecID(1);
+            << new FIX8::TEX::ReportToExch('Y');
         if (!server_->send(er, true))
             std::cout << "Order::on_submitted: Unable to send Execution report\n";
     }
@@ -74,6 +79,15 @@ void Order::on_accepted()
     if (server_ != nullptr)
     {
         //TODO: send execution report
+        auto* er = build_execution_report();
+        *er << new FIX8::TEX::ExecType(FIX8::TEX::ExecType_PENDING_NEW) 
+            << new FIX8::TEX::OrdStatus(FIX8::TEX::OrdStatus_NEW)
+            << new FIX8::TEX::CumQty(0.)
+            << new FIX8::TEX::AvgPx(0.)
+            << new FIX8::TEX::LastCapacity('5')
+            << new FIX8::TEX::ReportToExch('Y');
+        if (!server_->send(er, true))
+            std::cout << "Order::on_accepted: Unable to send Execution report\n";
     }
 }
 
@@ -81,35 +95,44 @@ void Order::on_rejected(const char* reason)
 {
     std::cout << "Order::on_rejected: Received event from market, sending Execution report\n";
     history_.emplace_back(State::Rejected, reason);
+    leaves_qty_ = 0;
     if (server_ != nullptr)
     {
         // send execution report
-        FIX8::TEX::ExecutionReport *er(new FIX8::TEX::ExecutionReport);
-        *er << new FIX8::TEX::OrderID(id_)
-            << new FIX8::TEX::ExecType(FIX8::TEX::ExecType_REJECTED)
+        auto* er = build_execution_report();
+        *er << new FIX8::TEX::ExecType(FIX8::TEX::ExecType_REJECTED) 
             << new FIX8::TEX::OrdStatus(FIX8::TEX::OrdStatus_REJECTED)
-            << new FIX8::TEX::LeavesQty(0.)
-            << new FIX8::TEX::Side(FIX8::TEX::Side_BUY)
             << new FIX8::TEX::CumQty(0.)
             << new FIX8::TEX::AvgPx(0.)
             << new FIX8::TEX::LastCapacity('5')
-            << new FIX8::TEX::ReportToExch('Y')
-            << new FIX8::TEX::ExecID(id_);
+            << new FIX8::TEX::ReportToExch('Y');
         if (!server_->send(er, true))
-            std::cout << "Order::on_submitted: Unable to send Execution report\n";
+            std::cout << "Order::on_rejected: Unable to send Execution report\n";
     }
 }
 
 void Order::on_filled(liquibook::book::Quantity fill_qty, liquibook::book::Cost fill_cost)
 {
     std::cout << "Order::on_filled: Received event from market, sending Execution report\n";
-    *(this) << new FIX8::TEX::LeavesQty(leaves_qty() - fill_qty);
-    fill_cost_ += fill_cost;
+    this->leaves_qty_ -= fill_qty;
     std::string msg = std::to_string(fill_qty) + " for " + std::to_string(fill_cost);
     history_.emplace_back(State::Filled, msg);
     if (server_ != nullptr)
     {
-        //TODO: send execution report
+        // send execution report
+        auto* er = build_execution_report();
+        *er << new FIX8::TEX::ExecType(FIX8::TEX::ExecType_TRADE) 
+            << new FIX8::TEX::CumQty(0.)
+            << new FIX8::TEX::AvgPx(0.)
+            << new FIX8::TEX::LastCapacity('5')
+            << new FIX8::TEX::ReportToExch('Y');
+        if (leaves_qty_ > 0)
+            *er << new FIX8::TEX::OrdStatus(FIX8::TEX::OrdStatus_PARTIALLY_FILLED);
+        else
+            *er << new FIX8::TEX::OrdStatus(FIX8::TEX::OrdStatus_FILLED);
+
+        if (!server_->send(er, true))
+            std::cout << "Order::on_filled: Unable to send Execution report\n";
     }
 }
 
@@ -119,18 +142,36 @@ void Order::on_cancel_requested()
     history_.emplace_back(State::CancelRequested);
     if (server_ != nullptr)
     {
-        //TODO: send execution report
+        // send execution report
+        auto* er = build_execution_report();
+        *er << new FIX8::TEX::ExecType(FIX8::TEX::ExecType_PENDING_CANCEL) 
+            << new FIX8::TEX::OrdStatus(FIX8::TEX::OrdStatus_PENDING_CANCEL)
+            << new FIX8::TEX::CumQty(0.)
+            << new FIX8::TEX::AvgPx(0.)
+            << new FIX8::TEX::LastCapacity('5')
+            << new FIX8::TEX::ReportToExch('Y');
+        if (!server_->send(er, true))
+            std::cout << "Order::on_cancel_requested: Unable to send Execution report\n";
     }
 }
 
 void Order::on_cancelled()
 {
     std::cout << "Order::on_cancelled: Received event from market, sending Execution report\n";
-    *(this) << new FIX8::TEX::LeavesQty(0.);
+    this->leaves_qty_ = 0;
     history_.emplace_back(State::Cancelled);
     if (server_ != nullptr)
     {
-        //TODO: send execution report
+        // send execution report
+        auto* er = build_execution_report();
+        *er << new FIX8::TEX::ExecType(FIX8::TEX::ExecType_CANCELED) 
+            << new FIX8::TEX::OrdStatus(FIX8::TEX::OrdStatus_CANCELED)
+            << new FIX8::TEX::CumQty(0.)
+            << new FIX8::TEX::AvgPx(0.)
+            << new FIX8::TEX::LastCapacity('5')
+            << new FIX8::TEX::ReportToExch('Y');
+        if (!server_->send(er, true))
+            std::cout << "Order::on_cancelled: Unable to send Execution report\n";
     }
 }
 
@@ -140,7 +181,16 @@ void Order::on_cancel_rejected(const char* reason)
     history_.emplace_back(State::CancelRejected, reason);
     if (server_ != nullptr)
     {
-        //TODO: send execution report
+        // send execution report
+        auto* er = build_execution_report();
+        *er << new FIX8::TEX::ExecType(FIX8::TEX::ExecType_REJECTED) 
+            << new FIX8::TEX::OrdStatus(FIX8::TEX::OrdStatus_REJECTED)
+            << new FIX8::TEX::CumQty(0.)
+            << new FIX8::TEX::AvgPx(0.)
+            << new FIX8::TEX::LastCapacity('5')
+            << new FIX8::TEX::ReportToExch('Y');
+        if (!server_->send(er, true))
+            std::cout << "Order::on_cancel_rejected: Unable to send Execution report\n";
     }
 }
 
@@ -155,7 +205,16 @@ void Order::on_replace_requested(const int32_t& size_delta, liquibook::book::Pri
     history_.emplace_back(State::ModifyRequested, msg);
     if (server_ != nullptr)
     {
-        //TODO: send execution report
+        // send execution report
+        auto* er = build_execution_report();
+        *er << new FIX8::TEX::ExecType(FIX8::TEX::ExecType_PENDING_REPLACE) 
+            << new FIX8::TEX::OrdStatus(FIX8::TEX::OrdStatus_PENDING_REPLACE)
+            << new FIX8::TEX::CumQty(0.)
+            << new FIX8::TEX::AvgPx(0.)
+            << new FIX8::TEX::LastCapacity('5')
+            << new FIX8::TEX::ReportToExch('Y');
+        if (!server_->send(er, true))
+            std::cout << "Order::on_replace_requested: Unable to send Execution report\n";
     }
 }
 
@@ -165,7 +224,7 @@ void Order::on_replaced(const int32_t& size_delta, liquibook::book::Price new_pr
     std::string msg;
     if (size_delta != liquibook::book::SIZE_UNCHANGED)
     {
-        quantity_ += size_delta;
+        (*this) << new FIX8::TEX::OrderQty(order_qty() + size_delta);
         leaves_qty_ += size_delta;
         msg += "Quantity change: " + std::to_string(size_delta) + " ";
     }
@@ -177,7 +236,16 @@ void Order::on_replaced(const int32_t& size_delta, liquibook::book::Price new_pr
     history_.emplace_back(State::Modified, msg);
     if (server_ != nullptr)
     {
-        //TODO: send execution report
+        // send execution report
+        auto* er = build_execution_report();
+        *er << new FIX8::TEX::ExecType(FIX8::TEX::ExecType_REPLACED) 
+            << new FIX8::TEX::OrdStatus(FIX8::TEX::OrdStatus_REPLACED)
+            << new FIX8::TEX::CumQty(0.)
+            << new FIX8::TEX::AvgPx(0.)
+            << new FIX8::TEX::LastCapacity('5')
+            << new FIX8::TEX::ReportToExch('Y');
+        if (!server_->send(er, true))
+            std::cout << "Order::on_replaced: Unable to send Execution report\n";
     }
 }
 
@@ -187,7 +255,16 @@ void Order::on_replace_rejected(const char* reason)
     history_.emplace_back(State::ModifyRejected, reason);
     if (server_ != nullptr)
     {
-        //TODO: send execution report
+        // send execution report
+        auto* er = build_execution_report();
+        *er << new FIX8::TEX::ExecType(FIX8::TEX::ExecType_REJECTED) 
+            << new FIX8::TEX::OrdStatus(FIX8::TEX::OrdStatus_REJECTED)
+            << new FIX8::TEX::CumQty(0.)
+            << new FIX8::TEX::AvgPx(0.)
+            << new FIX8::TEX::LastCapacity('5')
+            << new FIX8::TEX::ReportToExch('Y');
+        if (!server_->send(er, true))
+            std::cout << "Order::on_replace_rejected: Unable to send Execution report\n";
     }
 }
 

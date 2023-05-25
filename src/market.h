@@ -3,7 +3,6 @@
  * The main market object
  */
 
-#include "order.h"
 #include <book/depth_order_book.h>
 #include <book/types.h>
 
@@ -22,27 +21,25 @@ constexpr typename std::underlying_type<E>::type to_underlying(E e) noexcept {
     return static_cast<typename std::underlying_type<E>::type>(e);
 }
 
-class Order;
-
-typedef std::shared_ptr<Order> OrderPtr;
-typedef liquibook::book::OrderBook<OrderPtr> OrderBook;
-typedef std::shared_ptr<OrderBook> OrderBookPtr;
-typedef liquibook::book::DepthOrderBook<OrderPtr> DepthOrderBook;
-typedef std::shared_ptr<DepthOrderBook> DepthOrderBookPtr;
-typedef liquibook::book::Depth<> BookDepth;
-
+template <typename T>
 class Market :
-        public liquibook::book::OrderListener<OrderPtr>, // when something happens to an order
-        public liquibook::book::TradeListener<OrderBook>, // when something happens to a trade
-        public liquibook::book::OrderBookListener<OrderBook>, // when something happens to the book
-        public liquibook::book::BboListener<DepthOrderBook>, // when something happens to the BBO
-        public liquibook::book::DepthListener<DepthOrderBook> // when something happens to the depth
+        public liquibook::book::OrderListener<std::shared_ptr<T>>, // when something happens to an order
+        public liquibook::book::TradeListener<liquibook::book::OrderBook<std::shared_ptr<T>>>, // when something happens to a trade
+        public liquibook::book::OrderBookListener<liquibook::book::OrderBook<std::shared_ptr<T>>>, // when something happens to the book
+        public liquibook::book::BboListener<liquibook::book::DepthOrderBook<std::shared_ptr<T>>>, // when something happens to the BBO
+        public liquibook::book::DepthListener<liquibook::book::DepthOrderBook<std::shared_ptr<T>>> // when something happens to the depth
 {
+    typedef std::shared_ptr<T> OrderPtr;
     typedef std::map<std::string, OrderPtr> OrderMap;
+    typedef liquibook::book::OrderBook<OrderPtr> OrderBook;
+    typedef std::shared_ptr<OrderBook> OrderBookPtr;
+    typedef liquibook::book::DepthOrderBook<OrderPtr> DepthOrderBook;
+    typedef std::shared_ptr<DepthOrderBook> DepthOrderBookPtr;
+    typedef liquibook::book::Depth<> BookDepth;
 
 public:
-    Market();
-    ~Market();
+    Market() { } 
+    ~Market() { }
 
     // OrderListener interface implementation
 
@@ -50,8 +47,16 @@ public:
      * @brief an order was accepted
      * @param order the order
      */
-    virtual void on_accept(const OrderPtr& order);
-    virtual void on_reject(const OrderPtr& order, const char* reason);
+    virtual void on_accept(const OrderPtr& order)
+    {
+        order->on_accepted();
+    }
+
+    virtual void on_reject(const OrderPtr& order, const char* reason)
+    {
+        order->on_rejected(reason);
+    }
+
     /****
      * @brief a fill happened
      * @param order the order
@@ -60,31 +65,51 @@ public:
      * @param fill_cost the cost
      */
     virtual void on_fill(const OrderPtr& order, const OrderPtr& matched_order, 
-            liquibook::book::Quantity fill_qty, liquibook::book::Cost fill_cost);
+            liquibook::book::Quantity fill_qty, liquibook::book::Cost fill_cost)
+    {
+        order->on_filled(fill_qty, fill_cost);
+        matched_order->on_filled(fill_qty, fill_cost);
+    }
+
     /***
      * @brief An order was cancelled
      * @param order the order that was cancelled
      */
-    virtual void on_cancel(const OrderPtr& order);
+    virtual void on_cancel(const OrderPtr& order)
+    {
+        order->on_cancelled();
+    }
+
     /***
      * @brief an attempt was made to cancel an order, but the request was rejected
      * @param order the order
      * @param reason the reason
      */
-    virtual void on_cancel_reject(const OrderPtr& order, const char* reason);
+    virtual void on_cancel_reject(const OrderPtr& order, const char* reason)
+    {
+        order->on_cancel_rejected(reason);
+    }
+
     /****
      * @brief qty or price was adjusted on an open order
      * @param order the replaced order
      * @param size_delta the qty changed and direction
      * @param new_price the updated order price
      */
-    virtual void on_replace(const OrderPtr& order, const int64_t& size_delta, liquibook::book::Price new_price);
+    virtual void on_replace(const OrderPtr& order, const int64_t& size_delta, liquibook::book::Price new_price)
+    {
+        order->on_replaced(size_delta, new_price);
+    }
+
     /****
      * @brief an attempt was made to replace an order, but the request was rejected
      * @param order the order
      * @param reason the reason
      */
-    virtual void on_replace_reject(const OrderPtr& order, const char* reason);
+    virtual void on_replace_reject(const OrderPtr& order, const char* reason)
+    {
+        order->on_replace_rejected(reason);
+    }
 
     // TradeListener interface implementation
     
@@ -94,14 +119,16 @@ public:
      * @param qty the quantity traded
      * @param cost the trade price
      */
-    virtual void on_trade(const OrderBook* book, liquibook::book::Quantity qty, liquibook::book::Cost cost);
+    virtual void on_trade(const OrderBook* book, liquibook::book::Quantity qty, liquibook::book::Cost cost)
+    {}
 
     /****
      * @brief there was some change somewhere in the book
      * @param book the book
      */
-    virtual void on_order_book_change(const OrderBook* book);
-
+    virtual void on_order_book_change(const OrderBook* book)
+    {}
+    
     // BboListener interface implementation
 
     /****
@@ -109,7 +136,8 @@ public:
      * @param book the book that threw the event
      * @param depth the book depth
      */
-    void on_bbo_change(const DepthOrderBook* book, const BookDepth* depth);
+    void on_bbo_change(const DepthOrderBook* book, const BookDepth* depth)
+    {}
 
     // DepthListener interface implementation
 
@@ -118,7 +146,8 @@ public:
      * @param book the book
      * @param depth the updated depth
      */
-    void on_depth_change(const DepthOrderBook* book, const BookDepth* depth);
+    void on_depth_change(const DepthOrderBook* book, const BookDepth* depth)
+    {}
 
 
     // typical input methods
@@ -128,33 +157,95 @@ public:
      * @param order the new order
      * @returns true if order was submitted (only basic validation completed)
      */
-    bool add_order(OrderPtr order);
+    bool add_order(OrderPtr order)
+    {
+        try
+        {
+            std::string symbol = order->symbol();
+            auto& book = get_book(symbol, false); // a simple, non depth book
+            order->order_id_ = std::to_string(++orderIdSeed_);
 
-    bool cancel_order(OrderPtr order);
+            // TODO: Read this from incoming order
+            const liquibook::book::OrderConditions conditions = NOC;
 
-    bool modify_order(OrderPtr order);
+            // TODO: Add more sanity checks
+        
+            order->on_submitted();
+            std::mutex& mut = book_mutexes_[symbol];
+            std::lock_guard<std::mutex> lock(mut);
+            // note: this returns true if order was immediately matched
+            book.add(order, conditions);
+        }
+        catch (const std::invalid_argument& ia)
+        {
+            // we don't have a book
+            order->on_rejected("Invalid Symbol");
+            return false;
+        }
+        return true;
+    }
+
+    bool cancel_order(OrderPtr order)
+    {
+        get_book(order->symbol(), false).cancel(order);
+        return true;
+    }
+
+    bool modify_order(OrderPtr order)
+    {
+        return get_book(order->symbol(), false).replace(order);
+    }
 
     /****
      * @brief set to true to create a new book when a new symbol comes in
      * @param in the value for the flag
      */
-    void add_books_as_needed(bool in);
+    void add_books_as_needed(bool in) { addBooksAsNeeded = in; }
 
     /***
      * Add a new market book
      * @param symbol the unique symbol
      * @param force TRUE to ignore addBooksAsNeeded flag
      */
-    OrderBook& add_book(const std::string& in, bool force = false);
+    liquibook::book::OrderBook<std::shared_ptr<T>>& add_book(const std::string& symbol, bool force = false)
+    {
+        auto itr = books_.find(symbol);
+        if (itr == books_.end())
+        {
+            if (!force && !addBooksAsNeeded)
+                throw std::invalid_argument( std::string("Unrecognized symbol: ") + symbol);
+            // try again with lock
+            std::lock_guard<std::mutex> lock(books_mutex_);
+            itr = books_.find(symbol);
+            if (itr == books_.end())
+            {
+                // add the book
+                auto& desired_book = books_[symbol];
+                desired_book.set_order_listener(this);
+                desired_book.set_trade_listener(this);
+                desired_book.set_order_book_listener(this);
+                book_mutexes_[symbol];
+                return desired_book;
+            }
+        }
+        // evidently someone else added it
+        return (*itr).second;
+    }
 
 private:
-    OrderBook& get_book(const std::string& symbol, bool depth_book);
+    liquibook::book::OrderBook<std::shared_ptr<T>>& get_book(const std::string& symbol, bool depth_book)
+    {
+        auto itr = books_.find(symbol);
+        if (itr == books_.end())
+            return add_book(symbol);
+        return (*itr).second;
+    }
 private:
     static constexpr liquibook::book::OrderConditions AON = to_underlying(liquibook::book::oc_all_or_none);
     static constexpr liquibook::book::OrderConditions IOC = to_underlying(liquibook::book::oc_immediate_or_cancel);
     static constexpr liquibook::book::OrderConditions NOC = to_underlying(liquibook::book::oc_no_conditions);
     std::atomic<uint32_t> orderIdSeed_ = 0;
-    std::map<std::string, OrderBook> books_;
+    std::map<std::string, liquibook::book::OrderBook<std::shared_ptr<T>>> books_;
     std::map<std::string, std::mutex> book_mutexes_;
     bool addBooksAsNeeded = false;
     std::mutex books_mutex_;

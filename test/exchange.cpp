@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "../src/market.h"
-
+#include "../src/order.h"
 #include <memory>
 
 template<typename E>
@@ -26,9 +26,7 @@ class MyOrder : public latinex::Order
         ReplaceRejected,
     };
 
-    MyOrder(const std::string& id, bool buy_side, liquibook::book::Quantity quantity, const std::string& symbol,
-            liquibook::book::Price price, liquibook::book::Price stopPrice, bool aon, bool ioc) :
-            Order(id, buy_side, quantity, symbol, price, stopPrice, aon, ioc)
+    MyOrder() : Order()
     {
     }
     virtual void on_submitted() { callCount[to_underlying(Func::Submitted)]++; }
@@ -51,20 +49,22 @@ class MyOrder : public latinex::Order
 
 std::shared_ptr<MyOrder> make_order(const std::string& symbol, bool buy, uint32_t price = 0, uint32_t qty = 100)
 {
-    return std::make_shared<MyOrder>("", buy, qty, symbol, price, 0, false, false);
+    auto ord = std::make_shared<MyOrder>();
+    *(ord) << new FIX8::TEX::Symbol(symbol)
+        << new FIX8::TEX::Side( buy ? FIX8::TEX::Side_BUY : FIX8::TEX::Side_SELL)
+        << new FIX8::TEX::Price(price)
+        << new FIX8::TEX::QtyType(FIX8::TEX::QtyType_UNITS)
+        << new FIX8::TEX::OrderQty(qty)
+        ;
+    return ord;
 }
 
 TEST(exchange, market_tests)
 {
-    latinex::Market market;
+    latinex::Market<MyOrder> market;
 
     std::shared_ptr<MyOrder> order = make_order("ABC", true, 10000);
-    try {
-        market.add_order(order);
-        FAIL();
-    } catch (const std::invalid_argument& in) {
-        // all good
-    }
+    EXPECT_FALSE(market.add_order(order));
     market.add_books_as_needed(true);
     market.add_order(order);
     EXPECT_EQ(order->callCount[to_underlying(MyOrder::Func::Submitted)], 1);

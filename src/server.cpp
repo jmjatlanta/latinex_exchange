@@ -75,8 +75,7 @@ bool TexRouterServer::operator() (const FIX8::TEX::NewOrderSingle *msg) const
             symbol = msg->get<FIX8::TEX::Symbol>()->get();
     }
     // after some validation, we should submit a new FixOrder to the exchange
-    std::shared_ptr<latinex::Order> ord = std::make_shared<latinex::Order>(id, buy_side, quantity, symbol,
-           price, stopPrice, aon, ioc );
+    std::shared_ptr<latinex::Order> ord = std::make_shared<latinex::Order>(*msg);
     LatinexSessionServer& server = static_cast<LatinexSessionServer&>(session_);
     ord->on_fix_server_changed(&server);
     if (server.market_ != nullptr && !server.market_->add_order(ord))

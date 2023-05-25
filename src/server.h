@@ -1,9 +1,11 @@
 #pragma once
 
-#include "market.h"
-
 #include <fix8/f8includes.hpp>
 #include "Myfix_router.hpp" // NOTE: must include f8includes first
+
+#include "order.h"
+#include "market.h"
+
 #include <vector>
 #include <memory>
 
@@ -12,7 +14,7 @@
  */
 
 class LatinexSessionServer; // declared further down
-namespace latinex { class Order; class Market; }
+namespace latinex { class Order; }
 /***
  * @brief A message router
  * @note Myfix_router, as it is in the TEX namespace, probably means it was generated
@@ -75,7 +77,7 @@ public:
         }
     }
 
-    std::shared_ptr<latinex::Market> market_ = nullptr;
+    std::shared_ptr<latinex::Market<latinex::Order>> market_ = nullptr;
     std::vector<latinex::Order*> subscribed_orders_;
 };
 

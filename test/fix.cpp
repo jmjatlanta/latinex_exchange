@@ -14,7 +14,7 @@ class MyServer
     public:
     MyServer() : server( new FIX8::ServerSession<LatinexSessionServer>(
                 FIX8::TEX::ctx(), "../test/myfix_server.xml", "TEX1")),
-                market_(std::make_shared<latinex::Market>())
+                market_(std::make_shared<latinex::Market<latinex::Order>>())
     {
         message_thread = std::thread(&MyServer::run, this);
     }
@@ -55,7 +55,7 @@ class MyServer
         market_->add_book(symbol, true);
         return true;
     }
-    std::shared_ptr<latinex::Market> market_ = nullptr;
+    std::shared_ptr<latinex::Market<latinex::Order>> market_ = nullptr;
     std::thread message_thread;
     std::unique_ptr<FIX8::ServerSessionBase> server = nullptr;
     int scnt = 0;
@@ -151,7 +151,18 @@ TEST(Fix, createClientAndServer)
     std::cout << "createClientAndServer:: logout wait is over\n";
 }
 
-TEST(Fix, SendNewOrderSingle)
+TEST(Fix, SendNewOrderSingleNoBook)
+{
+    MyServer myServer;
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    MyClient myClient;
+    // give it a sec
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    EXPECT_TRUE(myClient.send_order(true, 100, "ABC", 100));
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+}
+
+TEST(Fix, SendNewOrderSingleWithBook)
 {
     MyServer myServer;
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
