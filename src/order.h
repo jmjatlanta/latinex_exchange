@@ -53,6 +53,7 @@ public:
     liquibook::book::Price price() const;
     liquibook::book::Price stop_price() const;
     liquibook::book::Quantity order_qty() const;
+    liquibook::book::Quantity leaves_qty() const;
     bool is_buy() const;
     const std::vector<StateChange>& history() const;
     const StateChange& current_state() const;
@@ -71,6 +72,8 @@ public:
     virtual void on_fix_server_changed(LatinexSessionServer* server);
 
 private:
+    liquibook::book::Quantity quantity_;
+    liquibook::book::Quantity leaves_qty_;
     std::vector<StateChange> history_;
     LatinexSessionServer *server_ = nullptr;
 };
