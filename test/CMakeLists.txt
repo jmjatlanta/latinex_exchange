@@ -26,13 +26,14 @@ add_executable(test ${src} )
 
 target_include_directories( test PRIVATE
     ${CMAKE_SOURCE_DIR}/liquibook/src
+    ${POCO_INCLUDE_DIR}
     ${FIX8_DIR}/include
 )
 
 target_link_libraries( test 
     GTest::gtest
     GTest::gtest_main
-    ${FIX8_LIB_DIR}/libfix8.so
-    ${POCO_LIB_DIR}/libPocoFoundation.so
-    ${POCO_LIB_DIR}/libPocoNet.so
+    ${FIX8_LIB_DIR}/libfix8${CMAKE_SHARED_LIBRARY_SUFFIX}
+    ${POCO_LIB_DIR}/libPocoFoundation${CMAKE_SHARED_LIBRARY_SUFFIX}
+    ${POCO_LIB_DIR}/libPocoNet${CMAKE_SHARED_LIBRARY_SUFFIX}
 )
