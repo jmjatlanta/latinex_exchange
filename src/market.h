@@ -163,13 +163,14 @@ public:
         {
             std::string symbol = order->symbol();
             auto& book = get_book(symbol, false); // a simple, non depth book
-            order->order_id_ = std::to_string(++orderIdSeed_);
 
             // TODO: Read this from incoming order
             const liquibook::book::OrderConditions conditions = NOC;
 
             // TODO: Add more sanity checks
         
+            // give it a number
+            order->order_id_ = std::to_string(++orderIdSeed_);
             order->on_submitted();
             std::mutex& mut = book_mutexes_[symbol];
             std::lock_guard<std::mutex> lock(mut);
@@ -224,7 +225,7 @@ public:
                 desired_book.set_order_listener(this);
                 desired_book.set_trade_listener(this);
                 desired_book.set_order_book_listener(this);
-                book_mutexes_[symbol];
+                book_mutexes_[symbol]; // just to get the mutex into the map
                 return desired_book;
             }
         }
@@ -244,7 +245,7 @@ private:
     static constexpr liquibook::book::OrderConditions AON = to_underlying(liquibook::book::oc_all_or_none);
     static constexpr liquibook::book::OrderConditions IOC = to_underlying(liquibook::book::oc_immediate_or_cancel);
     static constexpr liquibook::book::OrderConditions NOC = to_underlying(liquibook::book::oc_no_conditions);
-    std::atomic<uint32_t> orderIdSeed_ = 0;
+    std::atomic<uint64_t> orderIdSeed_ = 0;
     std::map<std::string, liquibook::book::OrderBook<std::shared_ptr<T>>> books_;
     std::map<std::string, std::mutex> book_mutexes_;
     bool addBooksAsNeeded = false;

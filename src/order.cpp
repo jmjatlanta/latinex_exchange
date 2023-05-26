@@ -43,8 +43,11 @@ FIX8::TEX::ExecutionReport* Order::build_execution_report()
     FIX8::TEX::ExecutionReport* er = new FIX8::TEX::ExecutionReport;
     copy_legal(er);
     (*er) << new FIX8::TEX::LeavesQty(leaves_qty_)
-          << new FIX8::TEX::OrderID(order_id_)
-          << new FIX8::TEX::ExecID("blah");
+          << new FIX8::TEX::OrderID(order_id_);
+    if (server_ != nullptr) // just to be sure
+        (*er) << new FIX8::TEX::ExecID(server_->next_exec_id());
+    else
+        (*er) << new FIX8::TEX::ExecID("Blah");
     return er;
 }
 

@@ -77,6 +77,12 @@ public:
         }
     }
 
+    std::string next_exec_id()
+    { 
+        return  exec_id_counter_ == nullptr ? "Blah" : std::to_string(++(*exec_id_counter_)); 
+    }
+
+    std::shared_ptr<std::atomic<uint64_t>> exec_id_counter_ = nullptr;
     std::shared_ptr<latinex::Market<latinex::Order>> market_ = nullptr;
     std::vector<latinex::Order*> subscribed_orders_;
 };

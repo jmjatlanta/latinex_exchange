@@ -14,7 +14,8 @@ class MyServer
     public:
     MyServer() : server( new FIX8::ServerSession<LatinexSessionServer>(
                 FIX8::TEX::ctx(), "../test/myfix_server.xml", "TEX1")),
-                market_(std::make_shared<latinex::Market<latinex::Order>>())
+                market_(std::make_shared<latinex::Market<latinex::Order>>()),
+                exec_id_counter_(std::make_shared<std::atomic<uint64_t>>())
     {
         message_thread = std::thread(&MyServer::run, this);
     }
@@ -40,6 +41,7 @@ class MyServer
         std::unique_ptr<FIX8::SessionInstanceBase> inst(srv->create_server_instance());
         LatinexSessionServer& session_server = static_cast<LatinexSessionServer&>( *inst->session_ptr() );
         session_server.market_ = market_;
+        session_server.exec_id_counter_ = exec_id_counter_;
         const FIX8::ProcessModel pm(srv->get_process_model(srv->_ses));
         inst->start(pm == FIX8::pm_pipeline, 0, 0);
         if (pm != FIX8::pm_pipeline)
@@ -56,6 +58,7 @@ class MyServer
         return true;
     }
     std::shared_ptr<latinex::Market<latinex::Order>> market_ = nullptr;
+    std::shared_ptr<std::atomic<uint64_t>> exec_id_counter_ = nullptr;
     std::thread message_thread;
     std::unique_ptr<FIX8::ServerSessionBase> server = nullptr;
     int scnt = 0;
