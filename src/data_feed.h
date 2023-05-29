@@ -49,6 +49,7 @@ class DataFeed :
         in->add_order_book_listener(this);
         in->add_bbo_listener(this);
         in->add_depth_listener(this);
+        std::cout << "DataFeedServer::subscribe_to_market subscribed!\n";
     }
     // TODO: Implement all those interfaces
 
@@ -61,6 +62,8 @@ class DataFeed :
         memcpy(zmq_msg_data(&out_msg), msg.get_record(), sz);
         zmq_send(socket, &out_msg, sz, 0);
         zmq_msg_close(&out_msg);
+        std::cout << "DataFeedServer::send success\n";
+        return true;
     }
 
     /****

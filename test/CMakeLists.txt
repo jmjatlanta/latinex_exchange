@@ -36,6 +36,7 @@ target_include_directories( test PRIVATE
 target_link_libraries( test 
     GTest::gtest
     GTest::gtest_main
+    libzmq${CMAKE_SHARED_LIBRARY_SUFFIX}
     ${FIX8_LIB_DIR}/libfix8${CMAKE_SHARED_LIBRARY_SUFFIX}
     ${POCO_LIB_DIR}/libPocoFoundation${CMAKE_SHARED_LIBRARY_SUFFIX}
     ${POCO_LIB_DIR}/libPocoNet${CMAKE_SHARED_LIBRARY_SUFFIX}
