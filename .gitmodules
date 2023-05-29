@@ -1,3 +1,6 @@
 [submodule "liquibook"]
 	path = liquibook
 	url = git@github.com:/jmjatlanta/liquibook
+[submodule "nasdaq_itch_ouch"]
+	path = nasdaq_itch_ouch
+	url = https://github.com/jmjatlanta/nasdaq_itch_ouch

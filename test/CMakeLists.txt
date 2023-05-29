@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.2)
-
+cmake_policy(VERSION 3.25)
 project(test)
 
 include(FetchContent)
@@ -17,6 +17,8 @@ file(GLOB src
     ../src/server.cpp
     ../src/client.cpp
     ../src/helper.cpp
+    ../src/exchange_client.cpp
+    ../src/exchange_server.cpp
     ../src/Myfix_classes.cpp
     ../src/Myfix_traits.cpp
     ../src/Myfix_types.cpp
@@ -26,6 +28,7 @@ add_executable(test ${src} )
 
 target_include_directories( test PRIVATE
     ${CMAKE_SOURCE_DIR}/liquibook/src
+    ${CMAKE_SOURCE_DIR}/nasdaq_itch_ouch/include
     ${POCO_INCLUDE_DIR}
     ${FIX8_DIR}/include
 )

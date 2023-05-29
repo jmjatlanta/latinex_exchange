@@ -38,9 +38,27 @@ class Market :
     typedef liquibook::book::Depth<> BookDepth;
 
 public:
-    Market() { } 
+    Market() 
+    { 
+        add_order_listener(this);
+        add_trade_listener(this);
+        add_order_book_listener(this);
+        add_bbo_listener(this);
+        add_depth_listener(this);
+    } 
     ~Market() { }
 
+    void add_order_listener(liquibook::book::OrderListener<std::shared_ptr<T>>* in) 
+            { order_listeners_.emplace_back(in); }
+    void add_trade_listener(liquibook::book::TradeListener<liquibook::book::OrderBook<std::shared_ptr<T>>>* in) 
+            { trade_listeners_.emplace_back(in); }
+    void add_order_book_listener(liquibook::book::OrderBookListener<liquibook::book::OrderBook<std::shared_ptr<T>>>* in) 
+            { order_book_listeners_.emplace_back(in); }
+    void add_bbo_listener(liquibook::book::BboListener<liquibook::book::DepthOrderBook<std::shared_ptr<T>>>* in) 
+            { bbo_listeners_.emplace_back(in); }
+    void add_depth_listener(liquibook::book::DepthListener<liquibook::book::DepthOrderBook<std::shared_ptr<T>>>* in) 
+            { depth_listeners_.emplace_back(in); }
+    
     // OrderListener interface implementation
 
     /****
@@ -222,9 +240,18 @@ public:
             {
                 // add the book
                 auto& desired_book = books_[symbol];
-                desired_book.set_order_listener(this);
-                desired_book.set_trade_listener(this);
-                desired_book.set_order_book_listener(this);
+                for (auto* i : order_listeners_)
+                    desired_book.set_order_listener(i);
+                for (auto* i : trade_listeners_)
+                    desired_book.set_trade_listener(i);
+                for (auto* i : order_book_listeners_)
+                    desired_book.set_order_book_listener(i);
+                /*
+                for(auto i : bbo_listeners_)
+                    desired_book.set_bbo_listener(i);
+                for(auto* i : depth_listeners_)
+                    desired_book.set_depth_listener(i);
+                    */
                 book_mutexes_[symbol]; // just to get the mutex into the map
                 return desired_book;
             }
@@ -250,6 +277,11 @@ private:
     std::map<std::string, std::mutex> book_mutexes_;
     bool addBooksAsNeeded = false;
     std::mutex books_mutex_;
+    std::vector<liquibook::book::OrderListener<std::shared_ptr<T>>*> order_listeners_;
+    std::vector<liquibook::book::TradeListener<liquibook::book::OrderBook<std::shared_ptr<T>>>*> trade_listeners_;
+    std::vector<liquibook::book::OrderBookListener<liquibook::book::OrderBook<std::shared_ptr<T>>>*> order_book_listeners_;
+    std::vector<liquibook::book::BboListener<liquibook::book::DepthOrderBook<std::shared_ptr<T>>>*> bbo_listeners_;
+    std::vector<liquibook::book::DepthListener<liquibook::book::DepthOrderBook<std::shared_ptr<T>>>*> depth_listeners_;
 };
 
 } // namespace latinex
