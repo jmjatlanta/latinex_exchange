@@ -58,7 +58,7 @@ public:
      * @param before the previous state
      * @param after the current state
      */
-    void state_change(const FIX8::States::SessionStates before, const FIX8::States::SessionStates after);
+    void state_change(const FIX8::States::SessionStates before, const FIX8::States::SessionStates after) override;
 
     void subscribe_to_fix_events(latinex::Order* in)
     {

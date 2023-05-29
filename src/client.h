@@ -22,5 +22,5 @@ public:
             FIX8::Logger *logger = nullptr, FIX8::Logger *plogger = nullptr) 
             : Session(ctx, sid, persist, logger, plogger), router_(*this) {}
     bool handle_application(const unsigned seqnum, const FIX8::Message *&msg) override;
-    void state_change(const FIX8::States::SessionStates before, const FIX8::States::SessionStates after);
+    void state_change(const FIX8::States::SessionStates before, const FIX8::States::SessionStates after) override;
 };

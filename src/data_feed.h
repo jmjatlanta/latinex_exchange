@@ -29,8 +29,8 @@ class DataFeed :
     public:
 
     DataFeed() {
-        *context = zmq_init(1);
-        *socket = zmq_socket(context, ZMQ_PUB);
+        context = zmq_init(1);
+        socket = zmq_socket(context, ZMQ_PUB);
         zmq_connect(socket, "tcp://127.0.0.1:12001");
     }
 
@@ -52,13 +52,14 @@ class DataFeed :
     }
     // TODO: Implement all those interfaces
 
-    bool send(const itch::message& msg)
+    template<typename MSGTYPE>
+    bool send(const MSGTYPE& msg)
     {
         zmq_msg_t out_msg;
         size_t sz = msg.get_size();
         zmq_msg_init_size(&out_msg, sz);
         memcpy(zmq_msg_data(&out_msg), msg.get_record(), sz);
-        zmq_send(socket, &out_msg, 0);
+        zmq_send(socket, &out_msg, sz, 0);
         zmq_msg_close(&out_msg);
     }
 
