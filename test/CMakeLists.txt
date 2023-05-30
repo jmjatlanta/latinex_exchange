@@ -12,6 +12,7 @@ FetchContent_MakeAvailable(googletest)
 file(GLOB src
     exchange.cpp
     fix.cpp
+    data_feed.cpp
     ../src/market.cpp
     ../src/order.cpp
     ../src/server.cpp
