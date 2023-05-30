@@ -31,17 +31,25 @@ class DataFeed :
     public:
 
     DataFeed() {
+        std::cout << "DataFeed::ctor starting\n";
         context = zmq_init(1);
+        if (context == nullptr)
+            throw std::invalid_argument("Could not build context");
         socket = zmq_socket(context, ZMQ_PUB);
+        if (socket == nullptr)
+            throw std::invalid_argument("Unable to build socket");
         zmq_bind(socket, "tcp://127.0.0.1:12001");
+        std::cout << "DataFeed::ctor complete\n";
     }
 
     ~DataFeed()
     {
+        std::cout << "DataFeed::dtor starting\n";
         if (socket != nullptr)
             zmq_close(socket);
         if (context != nullptr)
             zmq_term(context);
+        std::cout << "DataFeed::dtor complete\n";
     }
 
     void subscribe_to_market(latinex::Market<T>* in)
@@ -58,12 +66,13 @@ class DataFeed :
         timespec tp;
         if(clock_gettime(CLOCK_REALTIME, &tp) == -1)
             std::cout << "unable to get time. Errno: " << errno << "\n";
-        uint64_t ns = ((uint64_t)tp.tv_sec * 1000000000) - midnight + tp.tv_nsec;
+        uint64_t ns = (((uint64_t)tp.tv_sec - epoch_at_midnight_sec) * 1000000000) + tp.tv_nsec;
         if (ns > 86400000000000) // ns in a day
         {
             // get new midnight
-            midnight = std::chrono::floor<
-                std::chrono::duration<int32_t,std::ratio<86400>>>(std::chrono::system_clock::now()) * 1000000000;
+            auto now = std::chrono::system_clock::now();
+            auto today = std::chrono::floor< std::chrono::duration<int32_t,std::ratio<86400>>>(now);
+            epoch_at_midnight_sec = std::chrono::duration_cast<std::chrono::seconds>(today.time_since_epoch()).count();
             return ns_since_midnight();
         }
         return ns;
@@ -92,7 +101,7 @@ class DataFeed :
         msg.set_int(itch::add_order_with_mpid::SHARES, order->order_qty());
         msg.set_string(itch::add_order_with_mpid::STOCK, order->symbol());
         msg.set_int(itch::add_order_with_mpid::PRICE, order->price());
-        msg.set_string(itch::add_order_with_mpid::ATTRIBUTION, order->get_mpid());
+        //msg.set_string(itch::add_order_with_mpid::ATTRIBUTION, order->get_mpid());
         send(msg);
     }
 
@@ -204,6 +213,6 @@ class DataFeed :
     private:
     void *context = nullptr;
     void *socket = nullptr;
-    std::atomic<uint64_t> midnight = 0;
+    std::atomic<uint64_t> epoch_at_midnight_sec = 0;
 };
 
