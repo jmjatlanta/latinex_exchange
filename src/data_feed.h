@@ -31,7 +31,6 @@ class DataFeed :
     public:
 
     DataFeed() {
-        std::cout << "DataFeed::ctor starting\n";
         context = zmq_init(1);
         if (context == nullptr)
             throw std::invalid_argument("Could not build context");
@@ -39,17 +38,14 @@ class DataFeed :
         if (socket == nullptr)
             throw std::invalid_argument("Unable to build socket");
         zmq_bind(socket, "tcp://127.0.0.1:12001");
-        std::cout << "DataFeed::ctor complete\n";
     }
 
     ~DataFeed()
     {
-        std::cout << "DataFeed::dtor starting\n";
         if (socket != nullptr)
             zmq_close(socket);
         if (context != nullptr)
             zmq_term(context);
-        std::cout << "DataFeed::dtor complete\n";
     }
 
     void subscribe_to_market(latinex::Market<T>* in)
