@@ -11,13 +11,11 @@ class MyDataFeedClient : public DataFeedClient
 
     virtual bool onAddOrder( const itch::add_order& in) override 
     { 
-        std::cout << "MyDataFeedClient::onAddOrder called\n";
         ++num_orders_added; 
         return true; 
     }
     virtual bool onAddOrderWithMpid(const itch::add_order_with_mpid& in) override 
     { 
-        std::cout << "MyDataFeedClient::onAddOrderWithMpid called\n";
         ++num_orders_added; 
         return true; 
     }
@@ -46,9 +44,7 @@ TEST(Fix, createClientAndServer)
         std::this_thread::sleep_for(std::chrono::seconds(2));
     }
     // give time to log out
-    std::cout << "createClientAndServer:: waiting for logout\n";
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-    std::cout << "createClientAndServer:: logout wait is over\n";
 }
 
 TEST(Fix, SendNewOrderSingleNoBook)

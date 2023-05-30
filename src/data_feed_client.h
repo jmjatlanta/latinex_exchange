@@ -58,15 +58,13 @@ class DataFeedClient
     {
         while(!shutting_down)
         {
-            zmq_msg_t in_msg;
-            zmq_msg_init(&in_msg);
-            int ret_val = zmq_recv(socket, &in_msg, 0, ZMQ_NOBLOCK);
+            size_t buf_size = 10000;
+            char buf[10000];
+            int ret_val = zmq_recv(socket, buf, buf_size, ZMQ_NOBLOCK);
             if (ret_val > 0)
             {
-                std::cout << "DataFeedClient::run First message length is " << ret_val << "\n";
-                int size = zmq_msg_size(&in_msg);
-                std::vector<uint8_t> bytes(size);
-                memcpy((char*)&bytes[0], zmq_msg_data(&in_msg), size); 
+                std::vector<uint8_t> bytes(ret_val);
+                memcpy((char*)&bytes[0], buf, ret_val); 
                 if(!onMessage(bytes))
                     std::cout << "DataFeedClient::run onMessage call returned false\n";
             }
@@ -80,18 +78,15 @@ class DataFeedClient
                 }
                 else
                 {
-                    std::cout << "DataFeedClient::run Again! ret_val was " << ret_val << "\n";
-                    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 }
             }
         }
-        std::cout << "DataFeedClient::run completed.\n";
     }
     virtual bool onMessage(const std::vector<uint8_t>& bytes)
     {
         // NOTE: This blocks the receiver until processing is complete
         const unsigned char* record = bytes.data();
-        std::cout << "DataFeedClient::onMessage received a record of type " << (char)bytes[0] << "\n";
         switch(bytes[0]) {
             case 'S':
                 return onSystemEvent( itch::system_event(record) );

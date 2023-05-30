@@ -22,6 +22,7 @@ class ExchangeServer
     public:
     std::shared_ptr<latinex::Market<latinex::Order>> market_ = nullptr; // the market this server is taking care of
     std::shared_ptr<std::atomic<uint64_t>> exec_id_counter_ = nullptr; // a singleton of a counter
+    std::shared_ptr<std::atomic<uint64_t>> tracking_counter_ = nullptr; // NASDAQ tracking number
 
     private:
     std::thread message_thread; // handles new sessions

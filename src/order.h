@@ -54,6 +54,7 @@ public:
     liquibook::book::Price stop_price() const;
     liquibook::book::Quantity order_qty() const;
     liquibook::book::Quantity leaves_qty() const;
+    std::string order_id() const;
     bool is_buy() const;
     const std::vector<StateChange>& history() const;
     const StateChange& current_state() const;

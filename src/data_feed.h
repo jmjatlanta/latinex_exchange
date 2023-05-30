@@ -5,6 +5,8 @@
 #include "zmq.h"
 #include <thread>
 #include <vector>
+#include <time.h>
+
 
 /***
  * A class that provides a datafeed for updates to orders, order books, and trades
@@ -31,7 +33,7 @@ class DataFeed :
     DataFeed() {
         context = zmq_init(1);
         socket = zmq_socket(context, ZMQ_PUB);
-        zmq_connect(socket, "tcp://127.0.0.1:12001");
+        zmq_bind(socket, "tcp://127.0.0.1:12001");
     }
 
     ~DataFeed()
@@ -49,20 +51,29 @@ class DataFeed :
         in->add_order_book_listener(this);
         in->add_bbo_listener(this);
         in->add_depth_listener(this);
-        std::cout << "DataFeedServer::subscribe_to_market subscribed!\n";
     }
-    // TODO: Implement all those interfaces
+
+    uint64_t ns_since_midnight()
+    {
+        timespec tp;
+        if(clock_gettime(CLOCK_REALTIME, &tp) == -1)
+            std::cout << "unable to get time. Errno: " << errno << "\n";
+        uint64_t ns = ((uint64_t)tp.tv_sec * 1000000000) - midnight + tp.tv_nsec;
+        if (ns > 86400000000000) // ns in a day
+        {
+            // get new midnight
+            midnight = std::chrono::floor<
+                std::chrono::duration<int32_t,std::ratio<86400>>>(std::chrono::system_clock::now()) * 1000000000;
+            return ns_since_midnight();
+        }
+        return ns;
+    }
 
     template<typename MSGTYPE>
     bool send(const MSGTYPE& msg)
     {
-        zmq_msg_t out_msg;
         size_t sz = msg.get_size();
-        zmq_msg_init_size(&out_msg, sz);
-        memcpy(zmq_msg_data(&out_msg), msg.get_record(), sz);
-        zmq_send(socket, &out_msg, sz, 0);
-        zmq_msg_close(&out_msg);
-        std::cout << "DataFeedServer::send success\n";
+        zmq_send(socket, msg.get_record(), sz, 0);
         return true;
     }
 
@@ -73,6 +84,15 @@ class DataFeed :
     virtual void on_accept(const OrderPtr& order)
     {
         itch::add_order_with_mpid msg;
+        // STOCK_LOCATE
+        // TRACKING_NUMBER
+        msg.set_int(itch::add_order_with_mpid::TIMESTAMP, ns_since_midnight());
+        msg.set_int(itch::add_order_with_mpid::ORDER_REFERENCE_NUMBER, strtol(order->order_id().c_str(), nullptr, 10));
+        msg.set_string(itch::add_order_with_mpid::BUY_SELL_INDICATOR, order->is_buy() ? "B" : "S");
+        msg.set_int(itch::add_order_with_mpid::SHARES, order->order_qty());
+        msg.set_string(itch::add_order_with_mpid::STOCK, order->symbol());
+        msg.set_int(itch::add_order_with_mpid::PRICE, order->price());
+        msg.set_string(itch::add_order_with_mpid::ATTRIBUTION, order->get_mpid());
         send(msg);
     }
 
@@ -184,5 +204,6 @@ class DataFeed :
     private:
     void *context = nullptr;
     void *socket = nullptr;
+    std::atomic<uint64_t> midnight = 0;
 };
 

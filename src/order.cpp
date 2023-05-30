@@ -25,6 +25,7 @@ liquibook::book::Price Order::stop_price() const { return 0; } // not used
 liquibook::book::Quantity Order::order_qty() const { return get<FIX8::TEX::OrderQty>()->get(); }
 liquibook::book::Quantity Order::leaves_qty() const { return leaves_qty_; }
 bool Order::is_buy() const { return get<FIX8::TEX::Side>()->get() == FIX8::TEX::Side_BUY; }
+std::string Order::order_id() const { return order_id_; }
 
 const std::vector<Order::StateChange>& Order::history() const { return history_; }
 const Order::StateChange& Order::current_state() const { return history_.back(); }
