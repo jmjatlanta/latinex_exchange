@@ -2,12 +2,12 @@
 
 #include "../src/exchange_server.h"
 #include "../src/exchange_client.h"
-#include "../src/data_feed_client.h"
+#include "../src/zmq_itch_feed_client.h"
 
-class MyDataFeedClient : public DataFeedClient
+class MyDataFeedClient : public ZmqItchFeedClient
 {
     public:
-    MyDataFeedClient() : DataFeedClient() {}
+    MyDataFeedClient() : ZmqItchFeedClient() {}
 
     virtual bool onAddOrder( const itch::add_order& in) override 
     { 

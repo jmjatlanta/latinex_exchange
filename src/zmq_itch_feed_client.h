@@ -4,20 +4,24 @@
 #include "zmq.h"
 #include <thread>
 
-class DataFeedClient
+/****
+ * Reads ITCH over ZMQ
+ */
+
+class ZmqItchFeedClient
 {
     public:
-    DataFeedClient() {
+    ZmqItchFeedClient() {
         context = zmq_init(1);
         socket = zmq_socket(context, ZMQ_SUB);
         if (zmq_setsockopt(socket, ZMQ_SUBSCRIBE, "", 0) != 0)
             throw std::invalid_argument("Invalid socket option");
         if (zmq_connect(socket, "tcp://127.0.0.1:12001") != 0)
             throw std::invalid_argument("Unable to connect to data server");
-        msg_thread = std::thread(&DataFeedClient::run, this);
+        msg_thread = std::thread(&ZmqItchFeedClient::run, this);
     }
 
-    ~DataFeedClient()
+    ~ZmqItchFeedClient()
     {
         shutting_down = true;
         msg_thread.join();
