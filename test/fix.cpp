@@ -30,9 +30,15 @@ class TestClient : public ExchangeClient
     TestClient() : ExchangeClient("../test/myfix_client.xml", "DLD1") {}
 };
 
+class TestServer : public ExchangeServer
+{
+    public:
+    TestServer() : ExchangeServer("../test/myfix_server.xml") {}
+};
+
 TEST(Fix, createServer)
 {
-    ExchangeServer myServer;
+    TestServer myServer;
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
 }
 
@@ -44,7 +50,7 @@ TEST(Fix, createClient)
 
 TEST(Fix, createClientAndServer)
 {
-    ExchangeServer myServer;
+    TestServer myServer;
     {
         TestClient myClient;
         std::this_thread::sleep_for(std::chrono::seconds(2));
@@ -55,7 +61,7 @@ TEST(Fix, createClientAndServer)
 
 TEST(Fix, SendNewOrderSingleNoBook)
 {
-    ExchangeServer myServer;
+    TestServer myServer;
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     TestClient myClient;
     // give it a sec
@@ -66,7 +72,7 @@ TEST(Fix, SendNewOrderSingleNoBook)
 
 TEST(Fix, SendNewOrderSingleWithBook)
 {
-    ExchangeServer myServer;
+    TestServer myServer;
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     EXPECT_TRUE(myServer.add_book("ABC"));
     TestClient myClient;
@@ -78,7 +84,7 @@ TEST(Fix, SendNewOrderSingleWithBook)
 
 TEST(Fix, OrderMatch)
 {
-    ExchangeServer myServer;
+    TestServer myServer;
     EXPECT_TRUE(myServer.add_book("ABC"));
     TestClient myClient;
     MyDataFeedClient dataFeedClient;

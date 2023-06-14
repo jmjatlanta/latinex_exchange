@@ -14,7 +14,12 @@ int main(int argc, char** argv)
 {
     signal(SIGINT, signal_thrown);
 
-    ExchangeServer server;
+    if (argc < 2)
+    {
+        std::cerr << "Syntax: " << argv[0] << " server.xml\n";
+        return EXIT_FAILURE;
+    }
+    ExchangeServer server(argv[1]);
 
     while (!shutting_down)
         std::this_thread::sleep_for(std::chrono::seconds(1));

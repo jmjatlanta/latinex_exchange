@@ -25,24 +25,34 @@ void ExchangeClient::client_process()
     // do not explicitly call stop() with reliable sessions before checking if it is already shutdown
     if (!session_->session_ptr()->is_shutdown())
     {
-        std::shared_ptr<FIX8::TEX::Logout> msg = std::make_shared<FIX8::TEX::Logout>();
+        FIX8::TEX::Logout msg;
         std::cout << "ExchangeClient: Sending Logout\n";
-        if (!send(msg.get()))
-            std::cout << "ExchangeClient::client_process: Logout failed to send.\n";
-        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-        if (!session_->session_ptr()->is_shutdown())
-        {
-            std::cout << "ExchangeCLient::client_process: stopping\n";
-            session_->session_ptr()->stop();
+        try {
+            if (!send(&msg))
+                std::cout << "ExchangeClient::client_process: Logout failed to send.\n";
+            std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+            if (!session_->session_ptr()->is_shutdown())
+            {
+                std::cout << "ExchangeCLient::client_process: stopping\n";
+                session_->session_ptr()->stop();
+        }
+        } catch (...) {
+            std::cout << "ExchangeClient::client_pricess caught unknown error\n"; 
         }
     } 
 }
 
 bool ExchangeClient::send(FIX8::Message* msg)
 {
-    FIX8::ClientSessionBase& clientSessionBase = *session_.get();
-    LatinexSessionClient& myClient = static_cast<LatinexSessionClient&>(*clientSessionBase.session_ptr());
-    return myClient.send(msg, false);
+    if (session_ != nullptr)
+    {
+        FIX8::ClientSessionBase* base = session_.get();
+        LatinexSessionClient* myClient = 
+                static_cast<LatinexSessionClient*>(base->session_ptr());
+        if (myClient != nullptr)
+            return myClient->send(msg, false);
+    }
+    return false;
 }
 
 bool ExchangeClient::send_order(bool buy_side, int size, const std::string& symbol, int price)

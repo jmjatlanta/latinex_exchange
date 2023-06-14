@@ -1,7 +1,7 @@
 #include "exchange_server.h"
 
-ExchangeServer::ExchangeServer() : server( new FIX8::ServerSession<LatinexSessionServer>(
-                FIX8::TEX::ctx(), "../test/myfix_server.xml", "TEX1")),
+ExchangeServer::ExchangeServer(const std::string& xml_file) : server( new FIX8::ServerSession<LatinexSessionServer>(
+                FIX8::TEX::ctx(), xml_file, "TEX1")),
                 market_(std::make_shared<latinex::Market<latinex::Order>>()),
                 exec_id_counter_(std::make_shared<std::atomic<uint64_t>>())
 {

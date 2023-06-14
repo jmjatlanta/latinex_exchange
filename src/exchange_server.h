@@ -11,7 +11,7 @@
 class ExchangeServer
 {
     public:
-    ExchangeServer();
+    ExchangeServer(const std::string& xml_file);
     virtual ~ExchangeServer();
     bool add_book(const std::string& symbol);
 
