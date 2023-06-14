@@ -1,11 +1,10 @@
 #include "exchange_client.h"
 
 ExchangeClient::ExchangeClient(const std::string& xml_filename, const std::string& dld_name) 
-            : session_(new FIX8::ReliableClientSession<LatinexSessionClient>(
-            FIX8::TEX::ctx(), xml_filename, dld_name))
+            : FIX8::ReliableClientSession<LatinexSessionClient>( FIX8::TEX::ctx(), xml_filename, dld_name)
 {
     // single session reliable client
-    session_->start(false, 0, 0);
+    start(false, 0, 0);
     message_thread = std::thread(&ExchangeClient::client_process, this);
 }
 
@@ -23,7 +22,7 @@ void ExchangeClient::client_process()
         std::this_thread::sleep_for( std::chrono::milliseconds(100) );
     }
     // do not explicitly call stop() with reliable sessions before checking if it is already shutdown
-    if (!session_->session_ptr()->is_shutdown())
+    if (!session_ptr()->is_shutdown())
     {
         FIX8::TEX::Logout msg;
         std::cout << "ExchangeClient: Sending Logout\n";
@@ -31,10 +30,10 @@ void ExchangeClient::client_process()
             if (!send(&msg))
                 std::cout << "ExchangeClient::client_process: Logout failed to send.\n";
             std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-            if (!session_->session_ptr()->is_shutdown())
+            if (!session_ptr()->is_shutdown())
             {
                 std::cout << "ExchangeCLient::client_process: stopping\n";
-                session_->session_ptr()->stop();
+                session_ptr()->stop();
         }
         } catch (...) {
             std::cout << "ExchangeClient::client_pricess caught unknown error\n"; 
@@ -44,14 +43,9 @@ void ExchangeClient::client_process()
 
 bool ExchangeClient::send(FIX8::Message* msg)
 {
-    if (session_ != nullptr)
-    {
-        FIX8::ClientSessionBase* base = session_.get();
-        LatinexSessionClient* myClient = 
-                static_cast<LatinexSessionClient*>(base->session_ptr());
-        if (myClient != nullptr)
-            return myClient->send(msg, false);
-    }
+    LatinexSessionClient* myClient = static_cast<LatinexSessionClient*>(session_ptr());
+    if (myClient != nullptr)
+        return myClient->send(msg, false);
     return false;
 }
 

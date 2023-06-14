@@ -8,6 +8,13 @@
 #include <thread>
 #include <vector>
 
+/***
+ * This class acts as an exchange
+ * It has books
+ * It has a FIX front-end for OMS
+ * It transmits an ITCH feed for market data
+ */
+
 class ExchangeServer
 {
     public:
@@ -17,6 +24,12 @@ class ExchangeServer
 
     private:
     void run();
+    /***
+     * This gets called when a new session connects
+     * @param srv
+     * @param scnt
+     * @param ismulti
+     */
     void server_process(FIX8::ServerSessionBase* srv, int scnt, bool ismulti);
 
     public:

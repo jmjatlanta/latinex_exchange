@@ -14,7 +14,9 @@
  */
 
 class LatinexSessionServer; // declared further down
+
 namespace latinex { class Order; }
+
 /***
  * @brief A message router
  * @note Myfix_router, as it is in the TEX namespace, probably means it was generated
@@ -31,6 +33,9 @@ public:
     virtual bool operator()(const FIX8::TEX::Logout* msg) const;
 };
 
+/***
+ * This represents a FIX connection to a client
+ */
 class LatinexSessionServer : public FIX8::Session
 {
     TexRouterServer router_;

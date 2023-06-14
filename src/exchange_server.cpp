@@ -29,6 +29,12 @@ void ExchangeServer::run()
     }
 }
 
+/***
+ * This gets called when a new session connects
+ * @param srv
+ * @param scnt
+ * @param ismulti
+ */
 void ExchangeServer::server_process(FIX8::ServerSessionBase* srv, int scnt, bool ismulti)
 {
     std::unique_ptr<FIX8::SessionInstanceBase> inst(srv->create_server_instance());
