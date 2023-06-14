@@ -10,7 +10,7 @@
 class ExchangeClient
 {
     public:
-    ExchangeClient();
+    ExchangeClient(const std::string& client_xml, const std::string& dld_name);
     virtual ~ExchangeClient();
     bool send(FIX8::Message* msg);
     bool send_order(bool buy_side, int size, const std::string& symbol, int price);

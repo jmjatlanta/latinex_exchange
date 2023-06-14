@@ -24,6 +24,12 @@ class MyDataFeedClient : public ZmqItchFeedClient
 
 };
 
+class TestClient : public ExchangeClient
+{
+    public:
+    TestClient() : ExchangeClient("../test/myfix_client.xml", "DLD1") {}
+};
+
 TEST(Fix, createServer)
 {
     ExchangeServer myServer;
@@ -32,7 +38,7 @@ TEST(Fix, createServer)
 
 TEST(Fix, createClient)
 {
-    ExchangeClient myClient;
+    TestClient myClient;
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
 }
 
@@ -40,7 +46,7 @@ TEST(Fix, createClientAndServer)
 {
     ExchangeServer myServer;
     {
-        ExchangeClient myClient;
+        TestClient myClient;
         std::this_thread::sleep_for(std::chrono::seconds(2));
     }
     // give time to log out
@@ -51,7 +57,7 @@ TEST(Fix, SendNewOrderSingleNoBook)
 {
     ExchangeServer myServer;
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    ExchangeClient myClient;
+    TestClient myClient;
     // give it a sec
     std::this_thread::sleep_for(std::chrono::seconds(1));
     EXPECT_TRUE(myClient.send_order(true, 100, "ABC", 100));
@@ -63,7 +69,7 @@ TEST(Fix, SendNewOrderSingleWithBook)
     ExchangeServer myServer;
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     EXPECT_TRUE(myServer.add_book("ABC"));
-    ExchangeClient myClient;
+    TestClient myClient;
     // give it a sec
     std::this_thread::sleep_for(std::chrono::seconds(1));
     EXPECT_TRUE(myClient.send_order(true, 100, "ABC", 100));
@@ -74,7 +80,7 @@ TEST(Fix, OrderMatch)
 {
     ExchangeServer myServer;
     EXPECT_TRUE(myServer.add_book("ABC"));
-    ExchangeClient myClient;
+    TestClient myClient;
     MyDataFeedClient dataFeedClient;
     // give it a sec
     std::this_thread::sleep_for(std::chrono::seconds(1));

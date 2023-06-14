@@ -5,6 +5,7 @@ ExchangeServer::ExchangeServer() : server( new FIX8::ServerSession<LatinexSessio
                 market_(std::make_shared<latinex::Market<latinex::Order>>()),
                 exec_id_counter_(std::make_shared<std::atomic<uint64_t>>())
 {
+    market_->add_books_as_needed(true);
     dataFeed.subscribe_to_market(&(*market_));
     message_thread = std::thread(&ExchangeServer::run, this);
 }

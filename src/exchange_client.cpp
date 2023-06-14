@@ -1,7 +1,8 @@
 #include "exchange_client.h"
 
-ExchangeClient::ExchangeClient() : session_(new FIX8::ReliableClientSession<LatinexSessionClient>(
-            FIX8::TEX::ctx(), "../test/myfix_client.xml", "DLD1"))
+ExchangeClient::ExchangeClient(const std::string& xml_filename, const std::string& dld_name) 
+            : session_(new FIX8::ReliableClientSession<LatinexSessionClient>(
+            FIX8::TEX::ctx(), xml_filename, dld_name))
 {
     // single session reliable client
     session_->start(false, 0, 0);
@@ -60,4 +61,3 @@ bool ExchangeClient::send_order(bool buy_side, int size, const std::string& symb
 
     return send(msg.get());
 }
-
