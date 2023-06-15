@@ -5,7 +5,7 @@
 
 #include "order.h"
 #include "market.h"
-
+#include "logger.h"
 #include <vector>
 #include <memory>
 
@@ -26,11 +26,14 @@ class TexRouterServer : public FIX8::TEX::Myfix_Router
     LatinexSessionServer& session_;
 
 public:
-    TexRouterServer(LatinexSessionServer& session) : session_(session) {}
+    TexRouterServer(LatinexSessionServer& session) 
+            : session_(session), logger(latinex::Logger::getInstance()) {}
 
     // NewOrderSingle message handler
     virtual bool operator()(const FIX8::TEX::NewOrderSingle* msg) const;
     virtual bool operator()(const FIX8::TEX::Logout* msg) const;
+    private:
+    latinex::Logger* logger;
 };
 
 /***
@@ -42,7 +45,8 @@ class LatinexSessionServer : public FIX8::Session
 public:
     LatinexSessionServer(const FIX8::F8MetaCntx& ctx, const FIX8::sender_comp_id& sci,
             FIX8::Persister *persist = nullptr, FIX8::Logger *logger = nullptr, FIX8::Logger *plogger = nullptr) 
-            : Session(ctx, sci, persist, logger, plogger), router_(*this) {}
+            : Session(ctx, sci, persist, logger, plogger), router_(*this), 
+            logger(latinex::Logger::getInstance()) {}
     ~LatinexSessionServer();
 
     /***
@@ -90,5 +94,6 @@ public:
     std::shared_ptr<std::atomic<uint64_t>> exec_id_counter_ = nullptr;
     std::shared_ptr<latinex::Market<latinex::Order>> market_ = nullptr;
     std::vector<latinex::Order*> subscribed_orders_;
+    latinex::Logger* logger;
 };
 

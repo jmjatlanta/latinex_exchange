@@ -4,13 +4,19 @@
 namespace latinex
 {
 
-Order::Order()
+Order::Order() : logger(Logger::getInstance())
 {
 }
 
-Order::Order(const FIX8::TEX::NewOrderSingle& in)
+Order::Order(const FIX8::TEX::NewOrderSingle& in) : Order::Order()
 {
     in.copy_legal(this);
+    FIX8::TEX::ClOrdID clOrdId;
+    if (in.get(clOrdId))
+        this->clOrdId = clOrdId.get();
+    FIX8::TEX::SecondaryClOrdID secondaryClOrdId;
+    if (in.get(secondaryClOrdId))
+        this->secondaryClOrdId = secondaryClOrdId.get();
 }
 
 Order::~Order()
@@ -25,7 +31,9 @@ liquibook::book::Price Order::stop_price() const { return 0; } // not used
 liquibook::book::Quantity Order::order_qty() const { return get<FIX8::TEX::OrderQty>()->get(); }
 liquibook::book::Quantity Order::leaves_qty() const { return leaves_qty_; }
 bool Order::is_buy() const { return get<FIX8::TEX::Side>()->get() == FIX8::TEX::Side_BUY; }
-std::string Order::order_id() const { return order_id_; }
+std::string Order::order_id() const { return orderId; }
+std::string Order::cl_ord_id() const { return clOrdId; }
+std::string Order::secondary_cl_ord_id() const { return secondaryClOrdId; }
 
 const std::vector<Order::StateChange>& Order::history() const { return history_; }
 const Order::StateChange& Order::current_state() const { return history_.back(); }
@@ -44,17 +52,19 @@ FIX8::TEX::ExecutionReport* Order::build_execution_report()
     FIX8::TEX::ExecutionReport* er = new FIX8::TEX::ExecutionReport;
     copy_legal(er);
     (*er) << new FIX8::TEX::LeavesQty(leaves_qty_)
-          << new FIX8::TEX::OrderID(order_id_);
+            << new FIX8::TEX::OrderID(orderId)
+            << new FIX8::TEX::SecondaryOrderID(clOrdId)
+            << new FIX8::TEX::SecondaryClOrdID(secondaryClOrdId);
     if (server_ != nullptr) // just to be sure
         (*er) << new FIX8::TEX::ExecID(server_->next_exec_id());
     else
-        (*er) << new FIX8::TEX::ExecID("Blah");
+        (*er) << new FIX8::TEX::ExecID("0");
     return er;
 }
 
 void Order::on_submitted()
 {
-    std::cout << "Order::on_submitted: Received event from market, sending Execution report\n";
+    logger->debug("Order", "on_submitted: Received event from market, sending Execution report");
     std::string msg;
     msg += (is_buy() ? "BUY " : "SELL ");
     msg += std::to_string(order_qty());
@@ -72,13 +82,13 @@ void Order::on_submitted()
             << new FIX8::TEX::LastCapacity('5')
             << new FIX8::TEX::ReportToExch('Y');
         if (!server_->send(er, true))
-            std::cout << "Order::on_submitted: Unable to send Execution report\n";
+            logger->debug("Order", "on_submitted: Unable to send Execution report");
     }
 }
 
 void Order::on_accepted()
 {
-    std::cout << "Order::on_accepted: Received event from market, sending Execution report\n";
+    logger->debug("Order", "on_accepted: Received event from market, sending Execution report");
     history_.emplace_back(State::Accepted);
     if (server_ != nullptr)
     {
@@ -91,13 +101,13 @@ void Order::on_accepted()
             << new FIX8::TEX::LastCapacity('5')
             << new FIX8::TEX::ReportToExch('Y');
         if (!server_->send(er, true))
-            std::cout << "Order::on_accepted: Unable to send Execution report\n";
+            logger->debug("Order", "on_accepted: Unable to send Execution report");
     }
 }
 
 void Order::on_rejected(const char* reason)
 {
-    std::cout << "Order::on_rejected: Received event from market, sending Execution report\n";
+    logger->debug("Order", "on_rejected: Received event from market, sending Execution report");
     history_.emplace_back(State::Rejected, reason);
     leaves_qty_ = 0;
     if (server_ != nullptr)
@@ -111,13 +121,13 @@ void Order::on_rejected(const char* reason)
             << new FIX8::TEX::LastCapacity('5')
             << new FIX8::TEX::ReportToExch('Y');
         if (!server_->send(er, true))
-            std::cout << "Order::on_rejected: Unable to send Execution report\n";
+            logger->debug("Order", "on_rejected: Unable to send Execution report");
     }
 }
 
 void Order::on_filled(liquibook::book::Quantity fill_qty, liquibook::book::Cost fill_cost)
 {
-    std::cout << "Order::on_filled: Received event from market, sending Execution report\n";
+    logger->debug("Order", "on_filled: Received event from market, sending Execution report");
     this->leaves_qty_ -= fill_qty;
     std::string msg = std::to_string(fill_qty) + " for " + std::to_string(fill_cost);
     history_.emplace_back(State::Filled, msg);
@@ -136,13 +146,13 @@ void Order::on_filled(liquibook::book::Quantity fill_qty, liquibook::book::Cost 
             *er << new FIX8::TEX::OrdStatus(FIX8::TEX::OrdStatus_FILLED);
 
         if (!server_->send(er, true))
-            std::cout << "Order::on_filled: Unable to send Execution report\n";
+            logger->debug("Order", "on_filled: Unable to send Execution report");
     }
 }
 
 void Order::on_cancel_requested()
 {
-    std::cout << "Order::on_cancel_requested: Received event from market, sending Execution report\n";
+    logger->debug("Order", "on_cancel_requested: Received event from market, sending Execution report");
     history_.emplace_back(State::CancelRequested);
     if (server_ != nullptr)
     {
@@ -155,13 +165,13 @@ void Order::on_cancel_requested()
             << new FIX8::TEX::LastCapacity('5')
             << new FIX8::TEX::ReportToExch('Y');
         if (!server_->send(er, true))
-            std::cout << "Order::on_cancel_requested: Unable to send Execution report\n";
+            logger->debug("Order", ":on_cancel_requested: Unable to send Execution report");
     }
 }
 
 void Order::on_cancelled()
 {
-    std::cout << "Order::on_cancelled: Received event from market, sending Execution report\n";
+    logger->debug("Order", "on_cancelled: Received event from market, sending Execution report");
     this->leaves_qty_ = 0;
     history_.emplace_back(State::Cancelled);
     if (server_ != nullptr)
@@ -175,13 +185,13 @@ void Order::on_cancelled()
             << new FIX8::TEX::LastCapacity('5')
             << new FIX8::TEX::ReportToExch('Y');
         if (!server_->send(er, true))
-            std::cout << "Order::on_cancelled: Unable to send Execution report\n";
+            logger->debug("Order", "on_cancelled: Unable to send Execution report");
     }
 }
 
 void Order::on_cancel_rejected(const char* reason)
 {
-    std::cout << "Order::on_cancel_rejected: Received event from market, sending Execution report\n";
+    logger->debug("Order", "on_cancel_rejected: Received event from market, sending Execution report");
     history_.emplace_back(State::CancelRejected, reason);
     if (server_ != nullptr)
     {
@@ -194,13 +204,13 @@ void Order::on_cancel_rejected(const char* reason)
             << new FIX8::TEX::LastCapacity('5')
             << new FIX8::TEX::ReportToExch('Y');
         if (!server_->send(er, true))
-            std::cout << "Order::on_cancel_rejected: Unable to send Execution report\n";
+            logger->debug("Order", "on_cancel_rejected: Unable to send Execution report");
     }
 }
 
 void Order::on_replace_requested(const int32_t& size_delta, liquibook::book::Price new_price)
 {
-    std::cout << "Order::on_replace_requested: Received event from market, sending Execution report\n";
+    logger->debug("Order", "on_replace_requested: Received event from market, sending Execution report");
     std::string msg;
     if (size_delta != liquibook::book::SIZE_UNCHANGED)
         msg += "Quantity change: " + std::to_string(size_delta) + " ";
@@ -218,13 +228,13 @@ void Order::on_replace_requested(const int32_t& size_delta, liquibook::book::Pri
             << new FIX8::TEX::LastCapacity('5')
             << new FIX8::TEX::ReportToExch('Y');
         if (!server_->send(er, true))
-            std::cout << "Order::on_replace_requested: Unable to send Execution report\n";
+            logger->debug("Order", "on_replace_requested: Unable to send Execution report");
     }
 }
 
 void Order::on_replaced(const int32_t& size_delta, liquibook::book::Price new_price)
 {
-    std::cout << "Order::on_replaced: Received event from market, sending Execution report\n";
+    logger->debug("Order", "on_replaced: Received event from market, sending Execution report");
     std::string msg;
     if (size_delta != liquibook::book::SIZE_UNCHANGED)
     {
@@ -249,13 +259,13 @@ void Order::on_replaced(const int32_t& size_delta, liquibook::book::Price new_pr
             << new FIX8::TEX::LastCapacity('5')
             << new FIX8::TEX::ReportToExch('Y');
         if (!server_->send(er, true))
-            std::cout << "Order::on_replaced: Unable to send Execution report\n";
+            logger->debug("Order", "on_replaced: Unable to send Execution report");
     }
 }
 
 void Order::on_replace_rejected(const char* reason)
 {
-    std::cout << "Order::on_replace_rejected: Received event from market, sending Execution report\n";
+    logger->debug("Order", "on_replace_rejected: Received event from market, sending Execution report");
     history_.emplace_back(State::ModifyRejected, reason);
     if (server_ != nullptr)
     {
@@ -268,7 +278,7 @@ void Order::on_replace_rejected(const char* reason)
             << new FIX8::TEX::LastCapacity('5')
             << new FIX8::TEX::ReportToExch('Y');
         if (!server_->send(er, true))
-            std::cout << "Order::on_replace_rejected: Unable to send Execution report\n";
+            logger->debug("Order", "on_replace_rejected: Unable to send Execution report");
     }
 }
 

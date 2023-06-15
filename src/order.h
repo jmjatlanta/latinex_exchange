@@ -1,6 +1,7 @@
 #pragma once
 
 #include "server.h"
+#include "logger.h"
 #include <fix8/f8includes.hpp>
 #include "Myfix_types.hpp"
 #include "Myfix_classes.hpp"
@@ -55,6 +56,8 @@ public:
     liquibook::book::Quantity order_qty() const;
     liquibook::book::Quantity leaves_qty() const;
     std::string order_id() const;
+    std::string cl_ord_id() const;
+    std::string secondary_cl_ord_id() const;
     bool is_buy() const;
     const std::vector<StateChange>& history() const;
     const StateChange& current_state() const;
@@ -72,7 +75,9 @@ public:
     virtual void on_replace_rejected(const char* reason);
     virtual void on_fix_server_changed(LatinexSessionServer* server);
 
-    std::string order_id_;
+    std::string orderId; // assigned by the exchange
+    std::string clOrdId; // assigned by the broker
+    std::string secondaryClOrdId; // assigned by broker's client
 private:
     FIX8::TEX::ExecutionReport* build_execution_report();
 private:
@@ -80,6 +85,7 @@ private:
     liquibook::book::Quantity leaves_qty_;
     std::vector<StateChange> history_;
     LatinexSessionServer *server_ = nullptr;
+    Logger* logger = nullptr;
 };
 
 } // namespace latinex

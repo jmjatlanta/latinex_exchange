@@ -2,7 +2,7 @@
 /****
  * The main market object
  */
-
+#include "logger.h"
 #include <book/depth_order_book.h>
 #include <book/types.h>
 
@@ -40,6 +40,7 @@ class Market :
 public:
     Market() 
     { 
+        logger = Logger::getInstance();
         add_order_listener(this);
         add_trade_listener(this);
         add_order_book_listener(this);
@@ -67,11 +68,13 @@ public:
      */
     virtual void on_accept(const OrderPtr& order)
     {
+        logger->debug("Market", "onAccept called");
         order->on_accepted();
     }
 
     virtual void on_reject(const OrderPtr& order, const char* reason)
     {
+        logger->debug("Market", "on_reject called");
         order->on_rejected(reason);
     }
 
@@ -85,6 +88,7 @@ public:
     virtual void on_fill(const OrderPtr& order, const OrderPtr& matched_order, 
             liquibook::book::Quantity fill_qty, liquibook::book::Cost fill_cost)
     {
+        logger->debug("Market", "on_fill called");
         order->on_filled(fill_qty, fill_cost);
         matched_order->on_filled(fill_qty, fill_cost);
     }
@@ -95,6 +99,7 @@ public:
      */
     virtual void on_cancel(const OrderPtr& order)
     {
+        logger->debug("Market", "on_cancel called");
         order->on_cancelled();
     }
 
@@ -105,6 +110,7 @@ public:
      */
     virtual void on_cancel_reject(const OrderPtr& order, const char* reason)
     {
+        logger->debug("Market", "on_cancel_reject called");
         order->on_cancel_rejected(reason);
     }
 
@@ -116,6 +122,7 @@ public:
      */
     virtual void on_replace(const OrderPtr& order, const int64_t& size_delta, liquibook::book::Price new_price)
     {
+        logger->debug("Market", "on_replace called");
         order->on_replaced(size_delta, new_price);
     }
 
@@ -126,6 +133,7 @@ public:
      */
     virtual void on_replace_reject(const OrderPtr& order, const char* reason)
     {
+        logger->debug("Market", "on_replace_reject called");
         order->on_replace_rejected(reason);
     }
 
@@ -138,14 +146,18 @@ public:
      * @param cost the trade price
      */
     virtual void on_trade(const OrderBook* book, liquibook::book::Quantity qty, liquibook::book::Cost cost)
-    {}
+    {
+        logger->debug("Market", "on_trade called");
+    }
 
     /****
      * @brief there was some change somewhere in the book
      * @param book the book
      */
     virtual void on_order_book_change(const OrderBook* book)
-    {}
+    {
+        logger->debug("Market", "on_order_book_change called");
+    }
     
     // BboListener interface implementation
 
@@ -155,7 +167,9 @@ public:
      * @param depth the book depth
      */
     void on_bbo_change(const DepthOrderBook* book, const BookDepth* depth)
-    {}
+    {
+        logger->debug("Market", "on_bbo_change called");
+    }
 
     // DepthListener interface implementation
 
@@ -165,7 +179,9 @@ public:
      * @param depth the updated depth
      */
     void on_depth_change(const DepthOrderBook* book, const BookDepth* depth)
-    {}
+    {
+        logger->debug("Market", "on_depth_change called");
+    }
 
 
     // typical input methods
@@ -188,7 +204,7 @@ public:
             // TODO: Add more sanity checks
         
             // give it a number
-            order->order_id_ = std::to_string(++orderIdSeed_);
+            order->orderId = std::to_string(++orderIdSeed_);
             order->on_submitted();
             std::mutex& mut = book_mutexes_[symbol];
             std::lock_guard<std::mutex> lock(mut);
@@ -282,6 +298,7 @@ private:
     std::vector<liquibook::book::OrderBookListener<liquibook::book::OrderBook<std::shared_ptr<T>>>*> order_book_listeners_;
     std::vector<liquibook::book::BboListener<liquibook::book::DepthOrderBook<std::shared_ptr<T>>>*> bbo_listeners_;
     std::vector<liquibook::book::DepthListener<liquibook::book::DepthOrderBook<std::shared_ptr<T>>>*> depth_listeners_;
+    Logger* logger = nullptr;
 };
 
 } // namespace latinex

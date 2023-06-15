@@ -2,6 +2,7 @@
 #include "server.h"
 #include "client.h"
 #include "data_feed.h"
+#include "logger.h"
 #include "Myfix_types.hpp"
 #include "Myfix_classes.hpp"
 
@@ -43,5 +44,6 @@ class ExchangeServer
     std::atomic<uint32_t> scnt = 0; // session counter
     bool shutting_down = false;
     DataFeed<latinex::Order> dataFeed;
+    latinex::Logger* logger = nullptr;
 };
 

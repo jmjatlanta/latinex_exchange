@@ -14,6 +14,11 @@ public:
     virtual bool operator() (const FIX8::TEX::ExecutionReport *msg) const;
 };
 
+/***
+ * This is a client probably suitable for testing
+ * Real clients will probably want to write their
+ * own class that derives from FIX8::Session
+ */
 class LatinexSessionClient : public FIX8::Session
 {
     tex_router_client router_;

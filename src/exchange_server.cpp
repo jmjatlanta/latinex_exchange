@@ -2,6 +2,7 @@
 
 ExchangeServer::ExchangeServer(const std::string& xml_file) : server( new FIX8::ServerSession<LatinexSessionServer>(
                 FIX8::TEX::ctx(), xml_file, "TEX1")),
+                logger(latinex::Logger::getInstance()),
                 market_(std::make_shared<latinex::Market<latinex::Order>>()),
                 exec_id_counter_(std::make_shared<std::atomic<uint64_t>>())
 {
@@ -47,9 +48,9 @@ void ExchangeServer::server_process(FIX8::ServerSessionBase* srv, int scnt, bool
         while(!inst->session_ptr()->is_shutdown())
             FIX8::hypersleep<FIX8::h_milliseconds>(100);
     // the session is finished
-    std::cout << "ExchangeServer::server_process: Connection to client " << scnt << " finished.\n";
+    logger->debug("ExchangeServer", "server_process: Connection to client " + std::to_string(scnt) + " finished.");
     inst->stop(); 
-    std::cout << "ExchangeServer::server_process: Connection to client " << scnt << " stopped.\n";
+    logger->debug("ExchangeServer", "server_process: Connection to client " + std::to_string(scnt) + " stopped.");
 }
 
 bool ExchangeServer::add_book(const std::string& symbol)

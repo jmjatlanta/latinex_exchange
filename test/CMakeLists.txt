@@ -18,6 +18,7 @@ file(GLOB src
     ../src/server.cpp
     ../src/client.cpp
     ../src/helper.cpp
+    ../src/logger.cpp
     ../src/exchange_client.cpp
     ../src/exchange_server.cpp
     ../src/Myfix_classes.cpp
