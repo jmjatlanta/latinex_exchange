@@ -1,5 +1,6 @@
 #include "order.h"
 #include "server.h" // LatinexSessionServer
+#include "latinex_config.h"
 
 namespace latinex
 {
@@ -8,8 +9,9 @@ Order::Order() : logger(Logger::getInstance())
 {
 }
 
-Order::Order(const FIX8::TEX::NewOrderSingle& in) : Order::Order()
+Order::Order(const FIX8::TEX::NewOrderSingle& in, uint64_t orderId) : Order::Order()
 {
+    this->orderId = std::to_string(orderId);
     in.copy_legal(this);
     FIX8::TEX::ClOrdID clOrdId;
     if (in.get(clOrdId))
@@ -52,6 +54,7 @@ FIX8::TEX::ExecutionReport* Order::build_execution_report()
     FIX8::TEX::ExecutionReport* er = new FIX8::TEX::ExecutionReport;
     copy_legal(er);
     (*er) << new FIX8::TEX::LeavesQty(leaves_qty_)
+            << new FIX8::TEX::CumQty(quantity_ - leaves_qty_)
             << new FIX8::TEX::OrderID(orderId)
             << new FIX8::TEX::SecondaryOrderID(clOrdId)
             << new FIX8::TEX::SecondaryClOrdID(secondaryClOrdId);
@@ -77,7 +80,6 @@ void Order::on_submitted()
         auto* er = build_execution_report();
         *er << new FIX8::TEX::ExecType(FIX8::TEX::ExecType_NEW) 
             << new FIX8::TEX::OrdStatus(FIX8::TEX::OrdStatus_PENDING_NEW)
-            << new FIX8::TEX::CumQty(0.)
             << new FIX8::TEX::AvgPx(0.)
             << new FIX8::TEX::LastCapacity('5')
             << new FIX8::TEX::ReportToExch('Y');
@@ -96,7 +98,6 @@ void Order::on_accepted()
         auto* er = build_execution_report();
         *er << new FIX8::TEX::ExecType(FIX8::TEX::ExecType_PENDING_NEW) 
             << new FIX8::TEX::OrdStatus(FIX8::TEX::OrdStatus_NEW)
-            << new FIX8::TEX::CumQty(0.)
             << new FIX8::TEX::AvgPx(0.)
             << new FIX8::TEX::LastCapacity('5')
             << new FIX8::TEX::ReportToExch('Y');
@@ -116,7 +117,6 @@ void Order::on_rejected(const char* reason)
         auto* er = build_execution_report();
         *er << new FIX8::TEX::ExecType(FIX8::TEX::ExecType_REJECTED) 
             << new FIX8::TEX::OrdStatus(FIX8::TEX::OrdStatus_REJECTED)
-            << new FIX8::TEX::CumQty(0.)
             << new FIX8::TEX::AvgPx(0.)
             << new FIX8::TEX::LastCapacity('5')
             << new FIX8::TEX::ReportToExch('Y');
@@ -136,8 +136,7 @@ void Order::on_filled(liquibook::book::Quantity fill_qty, liquibook::book::Cost 
         // send execution report
         auto* er = build_execution_report();
         *er << new FIX8::TEX::ExecType(FIX8::TEX::ExecType_TRADE) 
-            << new FIX8::TEX::CumQty(0.)
-            << new FIX8::TEX::AvgPx(0.)
+            << new FIX8::TEX::AvgPx(to_long_double(fill_cost))
             << new FIX8::TEX::LastCapacity('5')
             << new FIX8::TEX::ReportToExch('Y');
         if (leaves_qty_ > 0)
@@ -160,7 +159,6 @@ void Order::on_cancel_requested()
         auto* er = build_execution_report();
         *er << new FIX8::TEX::ExecType(FIX8::TEX::ExecType_PENDING_CANCEL) 
             << new FIX8::TEX::OrdStatus(FIX8::TEX::OrdStatus_PENDING_CANCEL)
-            << new FIX8::TEX::CumQty(0.)
             << new FIX8::TEX::AvgPx(0.)
             << new FIX8::TEX::LastCapacity('5')
             << new FIX8::TEX::ReportToExch('Y');
@@ -180,7 +178,6 @@ void Order::on_cancelled()
         auto* er = build_execution_report();
         *er << new FIX8::TEX::ExecType(FIX8::TEX::ExecType_CANCELED) 
             << new FIX8::TEX::OrdStatus(FIX8::TEX::OrdStatus_CANCELED)
-            << new FIX8::TEX::CumQty(0.)
             << new FIX8::TEX::AvgPx(0.)
             << new FIX8::TEX::LastCapacity('5')
             << new FIX8::TEX::ReportToExch('Y');
@@ -199,7 +196,6 @@ void Order::on_cancel_rejected(const char* reason)
         auto* er = build_execution_report();
         *er << new FIX8::TEX::ExecType(FIX8::TEX::ExecType_REJECTED) 
             << new FIX8::TEX::OrdStatus(FIX8::TEX::OrdStatus_REJECTED)
-            << new FIX8::TEX::CumQty(0.)
             << new FIX8::TEX::AvgPx(0.)
             << new FIX8::TEX::LastCapacity('5')
             << new FIX8::TEX::ReportToExch('Y');
@@ -223,7 +219,6 @@ void Order::on_replace_requested(const int32_t& size_delta, liquibook::book::Pri
         auto* er = build_execution_report();
         *er << new FIX8::TEX::ExecType(FIX8::TEX::ExecType_PENDING_REPLACE) 
             << new FIX8::TEX::OrdStatus(FIX8::TEX::OrdStatus_PENDING_REPLACE)
-            << new FIX8::TEX::CumQty(0.)
             << new FIX8::TEX::AvgPx(0.)
             << new FIX8::TEX::LastCapacity('5')
             << new FIX8::TEX::ReportToExch('Y');
@@ -254,7 +249,6 @@ void Order::on_replaced(const int32_t& size_delta, liquibook::book::Price new_pr
         auto* er = build_execution_report();
         *er << new FIX8::TEX::ExecType(FIX8::TEX::ExecType_REPLACED) 
             << new FIX8::TEX::OrdStatus(FIX8::TEX::OrdStatus_REPLACED)
-            << new FIX8::TEX::CumQty(0.)
             << new FIX8::TEX::AvgPx(0.)
             << new FIX8::TEX::LastCapacity('5')
             << new FIX8::TEX::ReportToExch('Y');
@@ -273,7 +267,6 @@ void Order::on_replace_rejected(const char* reason)
         auto* er = build_execution_report();
         *er << new FIX8::TEX::ExecType(FIX8::TEX::ExecType_REJECTED) 
             << new FIX8::TEX::OrdStatus(FIX8::TEX::OrdStatus_REJECTED)
-            << new FIX8::TEX::CumQty(0.)
             << new FIX8::TEX::AvgPx(0.)
             << new FIX8::TEX::LastCapacity('5')
             << new FIX8::TEX::ReportToExch('Y');

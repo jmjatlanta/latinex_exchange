@@ -23,6 +23,7 @@ file(GLOB src
     src/Myfix_types.cpp
     src/main.cpp
     src/logger.cpp
+    src/latinex_config.cpp
 )
 
 add_executable(latinex_exchange ${src} )

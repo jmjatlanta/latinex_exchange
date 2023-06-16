@@ -1,7 +1,7 @@
 #pragma once
 #include "order.h"
 #include "itch.h"
-
+#include "logger.h"
 #include "zmq.h"
 #include <thread>
 #include <vector>
@@ -30,7 +30,8 @@ class DataFeed :
 
     public:
 
-    DataFeed() {
+    DataFeed() : logger(latinex::Logger::getInstance()) 
+    {
         context = zmq_init(1);
         if (context == nullptr)
             throw std::invalid_argument("Could not build context");
@@ -88,6 +89,7 @@ class DataFeed :
      */
     virtual void on_accept(const OrderPtr& order)
     {
+        logger->debug("ItchDataFeed", "on_accept called");
         itch::add_order_with_mpid msg;
         // STOCK_LOCATE
         // TRACKING_NUMBER
@@ -103,6 +105,7 @@ class DataFeed :
 
     virtual void on_reject(const OrderPtr& order, const char* reason)
     {
+        logger->debug("ItchDataFeed", "on_reject called");
         /*
         itch::order_reject msg;
         send(msg);
@@ -119,8 +122,18 @@ class DataFeed :
     virtual void on_fill(const OrderPtr& order, const OrderPtr& matched_order, 
             liquibook::book::Quantity fill_qty, liquibook::book::Cost fill_cost)
     {
+        logger->debug("ItchDataFeed", "on_fill called");
         // we may need a order_executed or order_executed_with_price if the price was different
         itch::order_executed_with_price msg;
+        // MESSAGE_TYPE
+        // STOCK_LOCATE
+        // TRACKING_NUMBER
+        msg.set_int(itch::order_executed_with_price::TIMESTAMP, ns_since_midnight());
+        msg.set_int(itch::order_executed_with_price::ORDER_REFERENCE_NUMBER, strtol(order->order_id().c_str(), nullptr, 10));
+        msg.set_int(itch::order_executed_with_price::EXECUTED_SHARES, fill_qty);
+        // MATCH_NUMBER
+        msg.set_string(itch::order_executed_with_price::PRINTABLE, "Y");
+        msg.set_int(itch::order_executed_with_price::EXECUTION_PRICE, fill_cost);
         send(msg);
     }
 
@@ -130,6 +143,7 @@ class DataFeed :
      */
     virtual void on_cancel(const OrderPtr& order)
     {
+        logger->debug("ItchDataFeed", "on_cancel called");
         itch::order_cancel msg;
         send(msg);
     }
@@ -141,6 +155,7 @@ class DataFeed :
      */
     virtual void on_cancel_reject(const OrderPtr& order, const char* reason)
     {
+        logger->debug("ItchDataFeed", "on_cancel_reject called");
     }
 
     /****
@@ -151,6 +166,7 @@ class DataFeed :
      */
     virtual void on_replace(const OrderPtr& order, const int64_t& size_delta, liquibook::book::Price new_price)
     {
+        logger->debug("ItchDataFeed", "on_replace called");
         itch::order_replace msg;
         send(msg);
     }
@@ -162,6 +178,7 @@ class DataFeed :
      */
     virtual void on_replace_reject(const OrderPtr& order, const char* reason)
     {
+        logger->debug("ItchDataFeed", "on_replace_reject called");
     }
 
     // TradeListener interface implementation
@@ -174,6 +191,7 @@ class DataFeed :
      */
     virtual void on_trade(const OrderBook* book, liquibook::book::Quantity qty, liquibook::book::Cost cost)
     {
+        logger->debug("ItchDataFeed", "on_trade called");
         itch::trade msg;
         send(msg);
     }
@@ -183,7 +201,9 @@ class DataFeed :
      * @param book the book
      */
     virtual void on_order_book_change(const OrderBook* book)
-    {}
+    {
+        logger->debug("ItchDataFeed", "on_order_book_change called");
+    }
     
     // BboListener interface implementation
 
@@ -193,7 +213,9 @@ class DataFeed :
      * @param depth the book depth
      */
     void on_bbo_change(const DepthOrderBook* book, const BookDepth* depth)
-    {}
+    {
+        logger->debug("ItchDataFeed", "on_bbo_change called");
+    }
 
     // DepthListener interface implementation
 
@@ -203,12 +225,15 @@ class DataFeed :
      * @param depth the updated depth
      */
     void on_depth_change(const DepthOrderBook* book, const BookDepth* depth)
-    {}
+    {
+        logger->debug("ItchDataFeed", "on_depth_change called");
+    }
 
 
     private:
     void *context = nullptr;
     void *socket = nullptr;
     std::atomic<uint64_t> epoch_at_midnight_sec = 0;
+    latinex::Logger* logger = nullptr;
 };
 

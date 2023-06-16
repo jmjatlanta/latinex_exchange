@@ -41,11 +41,10 @@ public:
         StateChange(State state, const std::string& desc = "") : state_(state), description_(desc) {}
     };
 
-    Order();
     /**
      * Create order from FIX NewOrderSingle
      */
-    Order(const FIX8::TEX::NewOrderSingle& orig);
+    Order(const FIX8::TEX::NewOrderSingle& orig, uint64_t orderId);
 
     ~Order();
 
@@ -75,12 +74,14 @@ public:
     virtual void on_replace_rejected(const char* reason);
     virtual void on_fix_server_changed(LatinexSessionServer* server);
 
-    std::string orderId; // assigned by the exchange
-    std::string clOrdId; // assigned by the broker
-    std::string secondaryClOrdId; // assigned by broker's client
+protected:
+    Order();
 private:
     FIX8::TEX::ExecutionReport* build_execution_report();
 private:
+    std::string orderId; // assigned by the exchange
+    std::string clOrdId; // assigned by the broker
+    std::string secondaryClOrdId; // assigned by broker's client
     liquibook::book::Quantity quantity_;
     liquibook::book::Quantity leaves_qty_;
     std::vector<StateChange> history_;

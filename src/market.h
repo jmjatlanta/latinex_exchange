@@ -38,15 +38,10 @@ class Market :
     typedef liquibook::book::Depth<> BookDepth;
 
 public:
-    Market() 
+    Market() : logger(Logger::getInstance())
     { 
-        logger = Logger::getInstance();
-        add_order_listener(this);
-        add_trade_listener(this);
-        add_order_book_listener(this);
-        add_bbo_listener(this);
-        add_depth_listener(this);
     } 
+
     ~Market() { }
 
     void add_order_listener(liquibook::book::OrderListener<std::shared_ptr<T>>* in) 
@@ -70,12 +65,16 @@ public:
     {
         logger->debug("Market", "onAccept called");
         order->on_accepted();
+        for(auto* l : order_listeners_)
+            l->on_accept(order);
     }
 
     virtual void on_reject(const OrderPtr& order, const char* reason)
     {
         logger->debug("Market", "on_reject called");
         order->on_rejected(reason);
+        for(auto* l : order_listeners_)
+            l->on_reject(order, reason);
     }
 
     /****
@@ -91,6 +90,8 @@ public:
         logger->debug("Market", "on_fill called");
         order->on_filled(fill_qty, fill_cost);
         matched_order->on_filled(fill_qty, fill_cost);
+        for(auto* l : order_listeners_)
+            l->on_fill(order, matched_order, fill_qty, fill_cost);
     }
 
     /***
@@ -101,6 +102,8 @@ public:
     {
         logger->debug("Market", "on_cancel called");
         order->on_cancelled();
+        for(auto* l : order_listeners_)
+            l->on_cancel(order);
     }
 
     /***
@@ -112,6 +115,8 @@ public:
     {
         logger->debug("Market", "on_cancel_reject called");
         order->on_cancel_rejected(reason);
+        for(auto* l : order_listeners_)
+            l->on_cancel_reject(order, reason);
     }
 
     /****
@@ -124,6 +129,8 @@ public:
     {
         logger->debug("Market", "on_replace called");
         order->on_replaced(size_delta, new_price);
+        for(auto* l : order_listeners_)
+            l->on_replace(order, size_delta, new_price);
     }
 
     /****
@@ -135,6 +142,8 @@ public:
     {
         logger->debug("Market", "on_replace_reject called");
         order->on_replace_rejected(reason);
+        for(auto* l : order_listeners_)
+            l->on_replace_reject(order, reason);
     }
 
     // TradeListener interface implementation
@@ -148,15 +157,19 @@ public:
     virtual void on_trade(const OrderBook* book, liquibook::book::Quantity qty, liquibook::book::Cost cost)
     {
         logger->debug("Market", "on_trade called");
+        for(auto* l : trade_listeners_)
+            l->on_trade(book, qty, cost);
     }
 
     /****
      * @brief there was some change somewhere in the book
      * @param book the book
      */
-    virtual void on_order_book_change(const OrderBook* book)
+    virtual void on_order_book_change(const OrderBook* book) override
     {
         logger->debug("Market", "on_order_book_change called");
+        for(auto* l : order_book_listeners_)
+            l->on_order_book_change(book);
     }
     
     // BboListener interface implementation
@@ -166,9 +179,11 @@ public:
      * @param book the book that threw the event
      * @param depth the book depth
      */
-    void on_bbo_change(const DepthOrderBook* book, const BookDepth* depth)
+    void on_bbo_change(const DepthOrderBook* book, const BookDepth* depth) override
     {
         logger->debug("Market", "on_bbo_change called");
+        for(auto* l : bbo_listeners_)
+            l->on_bbo_change(book, depth);
     }
 
     // DepthListener interface implementation
@@ -181,6 +196,8 @@ public:
     void on_depth_change(const DepthOrderBook* book, const BookDepth* depth)
     {
         logger->debug("Market", "on_depth_change called");
+        for(auto* l : depth_listeners_)
+            l->on_depth_change(book, depth);
     }
 
 
@@ -193,6 +210,7 @@ public:
      */
     bool add_order(OrderPtr order)
     {
+        logger->debug("Market", "Adding order " + order->order_id());
         try
         {
             std::string symbol = order->symbol();
@@ -203,8 +221,6 @@ public:
 
             // TODO: Add more sanity checks
         
-            // give it a number
-            order->orderId = std::to_string(++orderIdSeed_);
             order->on_submitted();
             std::mutex& mut = book_mutexes_[symbol];
             std::lock_guard<std::mutex> lock(mut);
@@ -256,18 +272,9 @@ public:
             {
                 // add the book
                 auto& desired_book = books_[symbol];
-                for (auto* i : order_listeners_)
-                    desired_book.set_order_listener(i);
-                for (auto* i : trade_listeners_)
-                    desired_book.set_trade_listener(i);
-                for (auto* i : order_book_listeners_)
-                    desired_book.set_order_book_listener(i);
-                /*
-                for(auto i : bbo_listeners_)
-                    desired_book.set_bbo_listener(i);
-                for(auto* i : depth_listeners_)
-                    desired_book.set_depth_listener(i);
-                    */
+                desired_book.set_order_listener(this);
+                desired_book.set_trade_listener(this);
+                desired_book.set_order_book_listener(this);
                 book_mutexes_[symbol]; // just to get the mutex into the map
                 return desired_book;
             }
@@ -275,6 +282,8 @@ public:
         // evidently someone else added it
         return (*itr).second;
     }
+
+    uint64_t get_next_order_id() { return ++orderIdSeed_; }
 
 private:
     liquibook::book::OrderBook<std::shared_ptr<T>>& get_book(const std::string& symbol, bool depth_book)

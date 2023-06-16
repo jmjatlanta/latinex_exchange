@@ -76,7 +76,9 @@ bool TexRouterServer::operator() (const FIX8::TEX::NewOrderSingle *msg) const
     }
     // after some validation, we should submit a new FixOrder to the exchange
     LatinexSessionServer& server = static_cast<LatinexSessionServer&>(session_);
-    std::shared_ptr<latinex::Order> ord = std::make_shared<latinex::Order>(*msg);
+    if (server.market_ == nullptr)
+        throw std::invalid_argument("Market_ is null");
+    std::shared_ptr<latinex::Order> ord = std::make_shared<latinex::Order>(*msg, server.market_->get_next_order_id());
     ord->on_fix_server_changed(&server);
     if (server.market_ != nullptr && !server.market_->add_order(ord))
     {

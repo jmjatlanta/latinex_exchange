@@ -24,6 +24,7 @@ file(GLOB src
     ../src/Myfix_classes.cpp
     ../src/Myfix_traits.cpp
     ../src/Myfix_types.cpp
+    ../src/latinex_config.cpp
 )
 
 add_executable(test ${src} )
