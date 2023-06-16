@@ -82,8 +82,8 @@ private:
     std::string orderId; // assigned by the exchange
     std::string clOrdId; // assigned by the broker
     std::string secondaryClOrdId; // assigned by broker's client
-    liquibook::book::Quantity quantity_;
-    liquibook::book::Quantity leaves_qty_;
+    liquibook::book::Quantity quantity_ = 0;
+    liquibook::book::Quantity leaves_qty_ = 0;
     std::vector<StateChange> history_;
     LatinexSessionServer *server_ = nullptr;
     Logger* logger = nullptr;

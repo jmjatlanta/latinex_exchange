@@ -19,6 +19,13 @@ Order::Order(const FIX8::TEX::NewOrderSingle& in, uint64_t orderId) : Order::Ord
     FIX8::TEX::SecondaryClOrdID secondaryClOrdId;
     if (in.get(secondaryClOrdId))
         this->secondaryClOrdId = secondaryClOrdId.get();
+    FIX8::TEX::OrderQty qty;
+    if (in.get(qty))
+    {
+        this->leaves_qty_ = qty.get();
+        this->quantity_ = leaves_qty_;
+        logger->debug("Order", "ctor: Quantity and leaves_qty set to " + std::to_string(leaves_qty_));
+    }
 }
 
 Order::~Order()
@@ -131,6 +138,7 @@ void Order::on_filled(liquibook::book::Quantity fill_qty, liquibook::book::Cost 
     this->leaves_qty_ -= fill_qty;
     std::string msg = std::to_string(fill_qty) + " for " + std::to_string(fill_cost);
     history_.emplace_back(State::Filled, msg);
+    logger->debug("Order", "on_filled: " + msg + " new leaves_qty: " + std::to_string(leaves_qty_));
     if (server_ != nullptr)
     {
         // send execution report
