@@ -34,9 +34,28 @@ Order::~Order()
         server_->unsubscribe_from_fix_events(this);
 }
 
-std::string Order::symbol() const { return get<FIX8::TEX::Symbol>()->get(); }
-liquibook::book::Price Order::price() const { return get<FIX8::TEX::Price>()->get(); }
-liquibook::book::Price Order::stop_price() const { return 0; } // not used
+std::string Order::symbol() const 
+{ 
+    return get<FIX8::TEX::Symbol>()->get(); 
+}
+liquibook::book::Price Order::price() const 
+{ 
+    auto* obj = get<FIX8::TEX::Price>();
+    if (obj == nullptr)
+    {
+        return std::numeric_limits<liquibook::book::Price>::max();
+    }
+    return obj->get(); 
+}
+liquibook::book::Price Order::stop_price() const 
+{ 
+    auto* obj = get<FIX8::TEX::StopPx>();
+    if (obj == nullptr) 
+    {
+        return std::numeric_limits<liquibook::book::Price>::max();
+    }
+    return obj->get(); 
+}
 liquibook::book::Quantity Order::order_qty() const { return get<FIX8::TEX::OrderQty>()->get(); }
 liquibook::book::Quantity Order::leaves_qty() const { return leaves_qty_; }
 bool Order::is_buy() const { return get<FIX8::TEX::Side>()->get() == FIX8::TEX::Side_BUY; }
