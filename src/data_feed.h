@@ -3,6 +3,7 @@
 #include "itch.h"
 #include "logger.h"
 #include "zmq.h"
+#include "latinex_config.h"
 #include <thread>
 #include <vector>
 #include <time.h>
@@ -75,6 +76,15 @@ class DataFeed :
         return ns;
     }
 
+    /***
+     * ITCH prices are 32 bits, with an implied fixed decimal point at a precision of 4. 
+     * Ours are 64 bits, so we have to carefully reduce precision
+     */
+    int32_t to_itch_price(Price in) 
+    {
+        return (int32_t)in / 100;
+    }
+
     template<typename MSGTYPE>
     bool send(const MSGTYPE& msg)
     {
@@ -89,7 +99,10 @@ class DataFeed :
      */
     virtual void on_accept(const OrderPtr& order)
     {
-        logger->debug("ItchDataFeed", "on_accept called");
+        Quantity shares = order->order_qty();
+        int32_t price = to_itch_price(order->price());
+        logger->debug("ItchDataFeed", "on_accept called with price of " + std::to_string(price) 
+                + " and qty of " + std::to_string(shares));
         itch::add_order_with_mpid msg;
         // STOCK_LOCATE
         // TRACKING_NUMBER
@@ -98,7 +111,7 @@ class DataFeed :
         msg.set_string(itch::add_order_with_mpid::BUY_SELL_INDICATOR, order->is_buy() ? "B" : "S");
         msg.set_int(itch::add_order_with_mpid::SHARES, order->order_qty());
         msg.set_string(itch::add_order_with_mpid::STOCK, order->symbol());
-        msg.set_int(itch::add_order_with_mpid::PRICE, order->price());
+        msg.set_int(itch::add_order_with_mpid::PRICE, price);
         //msg.set_string(itch::add_order_with_mpid::ATTRIBUTION, order->get_mpid());
         send(msg);
     }
@@ -122,7 +135,9 @@ class DataFeed :
     virtual void on_fill(const OrderPtr& order, const OrderPtr& matched_order, 
             liquibook::book::Quantity fill_qty, liquibook::book::Cost fill_cost)
     {
-        logger->debug("ItchDataFeed", "on_fill called");
+        std::string debugMsg = "on_fill called with price of " + std::to_string(fill_cost)
+                + " and qty of " + std::to_string(fill_qty);
+        logger->debug("ItchDataFeed", debugMsg);
         // we may need a order_executed or order_executed_with_price if the price was different
         itch::order_executed_with_price msg;
         // MESSAGE_TYPE
@@ -133,7 +148,7 @@ class DataFeed :
         msg.set_int(itch::order_executed_with_price::EXECUTED_SHARES, fill_qty);
         // MATCH_NUMBER
         msg.set_string(itch::order_executed_with_price::PRINTABLE, "Y");
-        msg.set_int(itch::order_executed_with_price::EXECUTION_PRICE, fill_cost);
+        msg.set_int(itch::order_executed_with_price::EXECUTION_PRICE, to_itch_price(fill_cost));
         send(msg);
     }
 

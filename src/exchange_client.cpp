@@ -49,7 +49,7 @@ bool ExchangeClient::send(FIX8::Message* msg)
     return false;
 }
 
-bool ExchangeClient::send_order(bool buy_side, int size, const std::string& symbol, int price)
+bool ExchangeClient::send_order(bool buy_side, int size, const std::string& symbol, Price price)
 {
     // Create a NewOrderSingle and transmit
     std::unique_ptr<FIX8::TEX::NewOrderSingle> msg(new FIX8::TEX::NewOrderSingle);
