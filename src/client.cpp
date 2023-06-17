@@ -15,6 +15,10 @@ void LatinexSessionClient::state_change(const FIX8::States::SessionStates before
     // TODO: Do something inteligent
     std::cout << "LatinexSessionClient::state_change called. Old status: [" << to_string(before)
         << "] New status: [" << to_string(after) << "]\n";
+    if (to_string(after) == "st_continuous")
+        is_logged_in_ = true;
+    else
+        is_logged_in_ = false;
 }
 
 bool tex_router_client::operator() (const FIX8::TEX::ExecutionReport *msg) const

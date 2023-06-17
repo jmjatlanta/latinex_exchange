@@ -14,7 +14,12 @@ ExchangeServer::ExchangeServer(const std::string& xml_file) : server( new FIX8::
 ExchangeServer::~ExchangeServer()
 {
     shutting_down = true;
+    std::cerr << "Joining connection threads" << std::endl;
+    for(auto& t : connectionThreads)
+        t.join();
+    std::cerr << "Joining message thread" << std::endl;
     message_thread.join();
+    std::cerr << "ExchangeServer::dtor complete\n";
 }
 
 void ExchangeServer::run()
@@ -25,7 +30,7 @@ void ExchangeServer::run()
             continue;
         if (!shutting_down)
         {
-            server_process(server.get(), ++scnt, false);
+            connectionThreads.emplace_back(&ExchangeServer::server_process, this, server.get(), ++scnt, false);
         }
     }
 }

@@ -165,6 +165,32 @@ TEST(Fix, OrderMatch)
     EXPECT_EQ(dataFeedClient.num_orders_added, 2);
 }
 
+TEST(Fix, MultipleFixConnections)
+{
+    std::shared_ptr<TestServer> fixServer = std::make_shared<TestServer>();
+    EXPECT_TRUE(fixServer->add_book("ABC"));
+
+    std::shared_ptr<ExchangeClient> client1 = std::make_shared<ExchangeClient>("../test/myfix_client.xml", "JMJ1");
+    std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+
+    EXPECT_TRUE(client1->is_logged_in());
+
+    std::cout << "Now attempting to connect with connection 2" << std::endl;
+    std::shared_ptr<ExchangeClient> client2 = std::make_shared<ExchangeClient>("../test/myfix_client.xml", "DLD1");
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+    EXPECT_TRUE(client2->is_logged_in());
+
+    // now have client1 log off
+    client1 = nullptr;
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    EXPECT_TRUE(client2->is_logged_in());
+
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+    client2 = nullptr;
+}
+
 TEST(Fix, MultipleOrders)
 {
     std::shared_ptr<TestServer> myServer = std::make_shared<TestServer>();

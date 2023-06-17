@@ -45,5 +45,6 @@ class ExchangeServer
     bool shutting_down = false;
     DataFeed<latinex::Order> dataFeed;
     latinex::Logger* logger = nullptr;
+    std::vector<std::thread> connectionThreads;
 };
 

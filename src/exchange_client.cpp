@@ -12,12 +12,15 @@ ExchangeClient::~ExchangeClient()
 {
     shutting_down = true;
     message_thread.join();
+    std::cerr << "ExchangeClient::dtor completed\n";
 }
 
 void ExchangeClient::client_process()
 {
     while (!shutting_down)
     {
+        if (connection == nullptr && session_ptr() != nullptr)
+            connection = session_ptr();
         // do something
         std::this_thread::sleep_for( std::chrono::milliseconds(100) );
     }
