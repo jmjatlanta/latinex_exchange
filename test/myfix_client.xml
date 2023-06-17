@@ -20,7 +20,7 @@
 				persist="file0" />
 
 	<session name="DLD1"
-				sender_comp_id="DLD_TEX"
+				sender_comp_id="DLD_TEX2"
 				target_comp_id="TEX1_DLD"
 				tcp_recv_buffer="100663296"
 				tcp_send_buffer="100663296"

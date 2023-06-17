@@ -75,7 +75,10 @@ class MyDataFeedClient : public ZmqItchFeedClient, public BBOListener<Price>
 
     Price get_ask(const std::string& ticker) 
     { 
-        return bbos[ticker].second;
+        int32_t ask = bbos[ticker].second;
+        if (ask == 0)
+            ask = std::numeric_limits<int32_t>::max();
+        return ask;
     }
     
     size_t num_orders_added = 0;
@@ -97,9 +100,33 @@ class MyDataFeedClient : public ZmqItchFeedClient, public BBOListener<Price>
     std::map<std::string, TestBook> books;
 };
 
+void check_orders(const std::string& ticker, long double desiredBid, long double desiredAsk, 
+        MyDataFeedClient* dataFeed, ExchangeClient* client)
+{
+    Price bid = dataFeed->get_bid(ticker);
+    Price ask = dataFeed->get_ask(ticker);
+    std::cout << "For " << ticker << " Current bid is " << to_long_double(bid) 
+            << " and current ask is " << to_long_double(ask) << std::endl;
+    if (to_long_double(bid) < desiredBid)
+    {
+        std::cout << "Adding long order for 100 " << ticker << " at " << desiredBid << std::endl;
+        client->send_order(true, 100, ticker, to_price(desiredBid));
+    }
+    if (to_long_double(ask) > desiredAsk)
+    {
+        std::cout << "Adding short order for 100 " << ticker << " at " << desiredAsk << std::endl;
+        client->send_order(false, 100, ticker, to_price(desiredAsk));
+    }
+}
+
 int main(int argc, char** argv)
 {
-    ExchangeClient client("../test/myfix_client.xml", "DLD1");
+    if (argc < 3)
+    {
+        std::cerr << "Syntax: " << argv[0] << " client.xml DLD\n";
+        return 0;
+    }
+    ExchangeClient client(argv[1], argv[2]);
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
     MyDataFeedClient* datafeedClient = new MyDataFeedClient();
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
@@ -108,29 +135,14 @@ int main(int argc, char** argv)
     // CANAL is at 2.50
     datafeedClient->add_book("ASSA");
     datafeedClient->add_book("CANAL");
-    // add orders to make the range
-    client.send_order(true, 100, "ASSA", to_price(89.65));
-    client.send_order(false, 100, "ASSA", to_price(90.15));
-    client.send_order(true, 100, "CANAL", to_price(2.25));
-    client.send_order(false, 100, "CANAL", to_price(2.75));
     // get the current bid and ask
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
     while(true)
     {
         // set a 50c range around the midpoint
         // if the current bid or ask is outside the range, add more orders    
-        Price bid = datafeedClient->get_bid("ASSA");
-        Price ask = datafeedClient->get_ask("ASSA");
-        if (to_long_double(bid) <= 89.64)
-            client.send_order(true, 100, "ASSA", to_price(89.65));
-        if (to_long_double(ask) >= 90.16)
-            client.send_order(true, 100, "ASSA", to_price(90.15));
-        bid = datafeedClient->get_bid("CANAL");
-        ask = datafeedClient->get_ask("CANAL");
-        if (to_long_double(bid) <= 2.24)
-            client.send_order(true, 100, "CANAL", to_price(2.25));
-        if (to_long_double(ask) >= 2.76)
-            client.send_order(true, 100, "CANAL", to_price(2.75));
+        check_orders("ASSA", 89.65, 90.15, datafeedClient, &client);
+        check_orders("CANAL", 2.25, 2.75, datafeedClient, &client);
         std::this_thread::sleep_for(std::chrono::seconds(10));
     }
     
