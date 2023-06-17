@@ -10,9 +10,6 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 
 file(GLOB src
-    exchange.cpp
-    fix.cpp
-    data_feed.cpp
     ../src/market.cpp
     ../src/order.cpp
     ../src/server.cpp
@@ -27,7 +24,7 @@ file(GLOB src
     ../src/latinex_config.cpp
 )
 
-add_executable(test ${src} )
+add_executable(test exchange.cpp fix.cpp data_feed.cpp ${src} )
 
 target_include_directories( test PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/../liquibook/src
@@ -44,3 +41,20 @@ target_link_libraries( test
     ${POCO_LIB_DIR}/libPocoFoundation${CMAKE_SHARED_LIBRARY_SUFFIX}
     ${POCO_LIB_DIR}/libPocoNet${CMAKE_SHARED_LIBRARY_SUFFIX}
 )
+
+add_executable( trade_bot trade_bot.cpp ${src} )
+
+target_include_directories( trade_bot PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}/../liquibook/src
+    ${CMAKE_CURRENT_LIST_DIR}/../nasdaq_itch_ouch/include
+    ${POCO_INCLUDE_DIR}
+    ${FIX8_DIR}/include
+)
+
+target_link_libraries( trade_bot
+    libzmq${CMAKE_SHARED_LIBRARY_SUFFIX}
+    ${FIX8_LIB_DIR}/libfix8${CMAKE_SHARED_LIBRARY_SUFFIX}
+    ${POCO_LIB_DIR}/libPocoFoundation${CMAKE_SHARED_LIBRARY_SUFFIX}
+    ${POCO_LIB_DIR}/libPocoNet${CMAKE_SHARED_LIBRARY_SUFFIX}
+)
+
