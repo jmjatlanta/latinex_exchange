@@ -1,11 +1,15 @@
 #include "exchange_client.h"
 
+std::atomic<uint16_t> ExchangeClient::next_connection_id = 1;
+
 ExchangeClient::ExchangeClient(const std::string& xml_filename, const std::string& dld_name) 
-            : FIX8::ReliableClientSession<LatinexSessionClient>( FIX8::TEX::ctx(), xml_filename, dld_name)
+            : FIX8::ReliableClientSession<LatinexSessionClient>( FIX8::TEX::ctx(), xml_filename, dld_name),
+            logger(latinex::Logger::getInstance())
 {
+    logger->debug("ExchangeClient", "In ctor");
     // single session reliable client
     start(false, 0, 0);
-    message_thread = std::thread(&ExchangeClient::client_process, this);
+    message_thread = std::thread(&ExchangeClient::client_process, this, ++next_connection_id);
 }
 
 ExchangeClient::~ExchangeClient()
@@ -15,31 +19,38 @@ ExchangeClient::~ExchangeClient()
     std::cerr << "ExchangeClient::dtor completed\n";
 }
 
-void ExchangeClient::client_process()
+void ExchangeClient::client_process(uint16_t conn_id)
 {
+    logger->debug("ExchangeClient", "In client_process with id of " + std::to_string(conn_id));
     while (!shutting_down)
     {
         if (connection == nullptr && session_ptr() != nullptr)
+        {
             connection = session_ptr();
+            logger->debug("ExchangeClient", "set session_ptr for connection " + std::to_string(conn_id));
+        }
         // do something
         std::this_thread::sleep_for( std::chrono::milliseconds(100) );
     }
+    logger->debug("ExchangeClient", "shutting down connection " + std::to_string(conn_id));
     // do not explicitly call stop() with reliable sessions before checking if it is already shutdown
     if (!session_ptr()->is_shutdown())
     {
         FIX8::TEX::Logout msg;
-        std::cout << "ExchangeClient: Sending Logout\n";
+        logger->debug("ExchangeClient", "Sending Logout for connection " + std::to_string(conn_id));
         try {
             if (!send(&msg))
-                std::cout << "ExchangeClient::client_process: Logout failed to send.\n";
+                logger->debug("ExchangeClient", "client_process: Logout failed to send for connection"
+                        + std::to_string(conn_id));
             std::this_thread::sleep_for(std::chrono::milliseconds(2000));
             if (!session_ptr()->is_shutdown())
             {
-                std::cout << "ExchangeCLient::client_process: stopping\n";
+                logger->debug("ExchangeClient", "client_process: stopping" + std::to_string(conn_id));
                 session_ptr()->stop();
         }
         } catch (...) {
-            std::cout << "ExchangeClient::client_pricess caught unknown error\n"; 
+            logger->error("ExchangeClient", "client_process caught unknown error for connection" 
+                    + std::to_string(conn_id));
         }
     } 
 }

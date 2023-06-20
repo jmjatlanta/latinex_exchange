@@ -1,6 +1,7 @@
 #pragma once
 #include "server.h"
 #include "client.h"
+#include "logger.h"
 #include "latinex_config.h"
 #include "Myfix_types.hpp"
 #include "Myfix_classes.hpp"
@@ -18,11 +19,14 @@ class ExchangeClient : public FIX8::ReliableClientSession<LatinexSessionClient>
     bool is_logged_in() { return (connection == nullptr ? false : connection->is_logged_in()); }
 
     private:
-    void client_process();
+    void client_process(uint16_t conn_id);
 
     private:
     bool shutting_down = false;
     std::thread message_thread;
     LatinexSessionClient* connection = nullptr;
+    latinex::Logger* logger = nullptr;
+    public:
+    static std::atomic<uint16_t> next_connection_id;
 };
 

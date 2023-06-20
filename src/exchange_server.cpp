@@ -1,10 +1,11 @@
 #include "exchange_server.h"
 
-ExchangeServer::ExchangeServer(const std::string& xml_file) : server( new FIX8::ServerSession<LatinexSessionServer>(
-                FIX8::TEX::ctx(), xml_file, "TEX1")),
-                logger(latinex::Logger::getInstance()),
-                market_(std::make_shared<latinex::Market<latinex::Order>>()),
-                exec_id_counter_(std::make_shared<std::atomic<uint64_t>>())
+ExchangeServer::ExchangeServer(const std::string& xml_file) 
+        : server( new FIX8::ServerSession<LatinexSessionServer>(
+        FIX8::TEX::ctx(), xml_file, "TEX1")),
+        logger(latinex::Logger::getInstance()),
+        market_(std::make_shared<latinex::Market<latinex::Order>>()),
+        exec_id_counter_(std::make_shared<std::atomic<uint64_t>>())
 {
     market_->add_books_as_needed(true);
     dataFeed.subscribe_to_market(&(*market_));
@@ -14,24 +15,34 @@ ExchangeServer::ExchangeServer(const std::string& xml_file) : server( new FIX8::
 ExchangeServer::~ExchangeServer()
 {
     shutting_down = true;
-    std::cerr << "Joining connection threads" << std::endl;
+    logger->debug("ExchangeServer", "dtor: Joining connection threads");
     for(auto& t : connectionThreads)
-        t.join();
-    std::cerr << "Joining message thread" << std::endl;
+        if (t.joinable())
+            t.join();
+    connectionThreads = std::vector<std::thread>();
     message_thread.join();
-    std::cerr << "ExchangeServer::dtor complete\n";
+    server = nullptr;
+    logger->debug("ExchangeServer", "dtor complete");
 }
 
 void ExchangeServer::run()
 {
-    while(!shutting_down)
+    try
     {
-        if (!server->poll())
-            continue;
-        if (!shutting_down)
+        listening = true;
+        while(!shutting_down)
         {
-            connectionThreads.emplace_back(&ExchangeServer::server_process, this, server.get(), ++scnt, false);
+            if (!server->poll())
+                continue;
+            if (!shutting_down)
+            {
+                connectionThreads.emplace_back(&ExchangeServer::server_process, this, server.get(), ++scnt, false);
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
         }
+    } catch (std::exception e) {
+        listening = false;
+        logger->error("ExchangeServer", std::string("Error in run loop: ") + e.what());
     }
 }
 
@@ -43,12 +54,16 @@ void ExchangeServer::run()
  */
 void ExchangeServer::server_process(FIX8::ServerSessionBase* srv, int scnt, bool ismulti)
 {
+    logger->debug("ExchangeServer", "server_process: Connection to client " + std::to_string(scnt) + " starting");
     std::unique_ptr<FIX8::SessionInstanceBase> inst(srv->create_server_instance());
+    logger->debug("ExchangeServer", "server_process: create_server_instance " + std::to_string(scnt) + " completed");
     LatinexSessionServer& session_server = static_cast<LatinexSessionServer&>( *inst->session_ptr() );
     session_server.market_ = market_;
     session_server.exec_id_counter_ = exec_id_counter_;
     const FIX8::ProcessModel pm(srv->get_process_model(srv->_ses));
+    logger->debug("ExchangeServer", "server_process: get_process_model " + std::to_string(scnt) + " completed");
     inst->start(pm == FIX8::pm_pipeline, 0, 0);
+    logger->debug("ExchangeServer", "server_process: get_process_model " + std::to_string(scnt) + " started");
     if (pm != FIX8::pm_pipeline)
         while(!inst->session_ptr()->is_shutdown())
             FIX8::hypersleep<FIX8::h_milliseconds>(100);

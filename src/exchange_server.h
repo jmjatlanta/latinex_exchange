@@ -5,7 +5,7 @@
 #include "logger.h"
 #include "Myfix_types.hpp"
 #include "Myfix_classes.hpp"
-
+#include "logger.h"
 #include <thread>
 #include <vector>
 
@@ -21,6 +21,9 @@ class ExchangeServer
     public:
     ExchangeServer(const std::string& xml_file);
     virtual ~ExchangeServer();
+    
+    bool is_listening() { return listening; }
+
     bool add_book(const std::string& symbol);
 
     private:
@@ -43,6 +46,7 @@ class ExchangeServer
     std::unique_ptr<FIX8::ServerSessionBase> server = nullptr; // the FIX8 server (this class could be subclass of?)
     std::atomic<uint32_t> scnt = 0; // session counter
     bool shutting_down = false;
+    bool listening = false;
     DataFeed<latinex::Order> dataFeed;
     latinex::Logger* logger = nullptr;
     std::vector<std::thread> connectionThreads;

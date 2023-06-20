@@ -156,6 +156,7 @@ TEST(Fix, OrderMatch)
     EXPECT_TRUE(myServer.add_book("ABC"));
     TestClient myClient;
     MyDataFeedClient dataFeedClient;
+    dataFeedClient.add_book("ABC");
     // give it a sec
     std::this_thread::sleep_for(std::chrono::seconds(1));
     EXPECT_TRUE(dataFeedClient.is_connected());
@@ -197,12 +198,15 @@ TEST(Fix, MultipleOrders)
     EXPECT_TRUE(myServer->add_book("ABC"));
 
     std::shared_ptr<TestClient> client1 = std::make_shared<TestClient>();
+    std::this_thread::sleep_for(std::chrono::seconds(1));
     std::shared_ptr<MyDataFeedClient> datafeedClient1 = std::make_shared<MyDataFeedClient>();
+    std::this_thread::sleep_for(std::chrono::seconds(1));
     datafeedClient1->add_book("ABC");
     std::shared_ptr<TestClient> client2 = std::make_shared<TestClient>();
+    std::this_thread::sleep_for(std::chrono::seconds(1));
     std::shared_ptr<MyDataFeedClient> datafeedClient2 = std::make_shared<MyDataFeedClient>();
+    std::this_thread::sleep_for(std::chrono::seconds(1));
     datafeedClient2->add_book("ABC");
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
     EXPECT_TRUE(datafeedClient1->is_connected());
     EXPECT_TRUE(datafeedClient2->is_connected());
 
@@ -218,10 +222,15 @@ TEST(Fix, MultipleOrders)
     EXPECT_EQ(datafeedClient2->get_ask("ABC"), askPrice);
 
     datafeedClient2 = nullptr;
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
     datafeedClient1 = nullptr;
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
     client1 = nullptr;
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
     client2 = nullptr;
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
     myServer = nullptr;
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
 }
