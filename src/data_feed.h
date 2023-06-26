@@ -76,15 +76,6 @@ class DataFeed :
         return ns;
     }
 
-    /***
-     * ITCH prices are 32 bits, with an implied fixed decimal point at a precision of 4. 
-     * Ours are 64 bits, so we have to carefully reduce precision
-     */
-    int32_t to_itch_price(Price in) 
-    {
-        return (int32_t)in / 100;
-    }
-
     template<typename MSGTYPE>
     bool send(const MSGTYPE& msg)
     {
@@ -211,7 +202,7 @@ class DataFeed :
         msg.set_int(itch::trade::TIMESTAMP, ns_since_midnight());
         msg.set_int(itch::trade::SHARES, qty);
         msg.set_string(itch::trade::STOCK, book->symbol());
-        msg.set_int(itch::trade::PRICE, cost);
+        msg.set_int(itch::trade::PRICE, to_itch_price(cost));
         send(msg);
     }
 

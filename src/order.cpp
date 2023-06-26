@@ -45,7 +45,8 @@ liquibook::book::Price Order::price() const
     {
         return std::numeric_limits<liquibook::book::Price>::max();
     }
-    return obj->get(); 
+    logger->debug("Order", "price() is " + std::to_string(to_price(obj->get())));
+    return to_price(obj->get()); 
 }
 liquibook::book::Price Order::stop_price() const 
 { 
@@ -54,7 +55,7 @@ liquibook::book::Price Order::stop_price() const
     {
         return std::numeric_limits<liquibook::book::Price>::max();
     }
-    return obj->get(); 
+    return to_price(obj->get()); 
 }
 liquibook::book::Quantity Order::order_qty() const { return get<FIX8::TEX::OrderQty>()->get(); }
 liquibook::book::Quantity Order::leaves_qty() const { return leaves_qty_; }
@@ -266,7 +267,7 @@ void Order::on_replaced(const int32_t& size_delta, liquibook::book::Price new_pr
     }
     if (new_price != liquibook::book::PRICE_UNCHANGED)
     {
-        *(this) << new FIX8::TEX::Price(new_price);
+        *(this) << new FIX8::TEX::Price(to_long_double(new_price));
         msg += "New Price " + std::to_string(new_price);
     }
     history_.emplace_back(State::Modified, msg);

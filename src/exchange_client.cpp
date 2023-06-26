@@ -69,7 +69,7 @@ bool ExchangeClient::send_order(bool buy_side, int size, const std::string& symb
     std::unique_ptr<FIX8::TEX::NewOrderSingle> msg(new FIX8::TEX::NewOrderSingle);
     *(msg.get()) << new FIX8::TEX::TransactTime
         << new FIX8::TEX::OrderQty(size)
-        << new FIX8::TEX::Price(price)
+        << new FIX8::TEX::Price(to_long_double(price))
         << new FIX8::TEX::ClOrdID("myorderid")
         << new FIX8::TEX::Symbol(symbol)
         << new FIX8::TEX::HandlInst(FIX8::TEX::HandlInst_AUTOMATED_EXECUTION_ORDER_PRIVATE_NO_BROKER_INTERVENTION)

@@ -2,7 +2,10 @@
 
 #include "itch.h"
 #include "zmq.h"
+#include "logger.h"
 #include <thread>
+#include <vector>
+#include <stdexcept>
 
 /****
  * Reads ITCH over ZMQ
@@ -11,7 +14,7 @@
 class ZmqItchFeedClient
 {
     public:
-    ZmqItchFeedClient() {
+    ZmqItchFeedClient() : logger(latinex::Logger::getInstance()) {
         context = zmq_init(1);
         socket = zmq_socket(context, ZMQ_SUB);
         if (zmq_setsockopt(socket, ZMQ_SUBSCRIBE, "", 0) != 0)
@@ -70,14 +73,15 @@ class ZmqItchFeedClient
                 std::vector<uint8_t> bytes(ret_val);
                 memcpy((char*)&bytes[0], buf, ret_val); 
                 if(!onMessage(bytes))
-                    std::cout << "DataFeedClient::run onMessage call returned false\n";
+                    logger->error("ZmqItchFeedClient", "onMessage call returned false");
             }
             else
             {
                 if (ret_val < 0 && errno != EAGAIN)
                 {
-                    std::cout << "DataFeedClient::run Uh Oh! ret_val was " << ret_val 
-                        << " and errno was " << errno << "\n";
+                    logger->error("ZmqItchFeedClient", "onMessage"
+                            "DataFeedClient::run Uh Oh! ret_val was " + std::to_string(ret_val)
+                            + " and errno was " + std::to_string(errno));
                     break;
                 }
                 else
@@ -149,4 +153,5 @@ class ZmqItchFeedClient
     bool shutting_down = false;
     void* context = nullptr;
     void* socket = nullptr;
+    latinex::Logger* logger;
 };

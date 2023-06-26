@@ -2,6 +2,7 @@
 #include "helper.h"
 #include "Myfix_types.hpp"
 #include "Myfix_classes.hpp"
+#include "latinex_config.h"
 
 LatinexSessionServer::~LatinexSessionServer()
 {
@@ -70,7 +71,10 @@ bool TexRouterServer::operator() (const FIX8::TEX::NewOrderSingle *msg) const
         if (msg->has<FIX8::TEX::OrderQty>())
             quantity = msg->get<FIX8::TEX::OrderQty>()->get();
         if (msg->has<FIX8::TEX::Price>())
-            price = msg->get<FIX8::TEX::Price>()->get();
+        {
+            price = to_price(msg->get<FIX8::TEX::Price>()->get());
+            logger->debug("TexRouterServer", "Received NewOrderSingle with price of " + std::to_string(price));
+        }
         if (msg->has<FIX8::TEX::Symbol>())
             symbol = msg->get<FIX8::TEX::Symbol>()->get();
     }

@@ -18,3 +18,11 @@ long double to_long_double(Price in);
  * Convert a decimal number into a price
  */
 Price to_price(long double in);
+
+/***
+ * ITCH prices are 32 bits, with an implied fixed decimal point at a precision of 4. 
+ * Ours are 64 bits, so we have to carefully reduce precision
+ */
+int32_t to_itch_price(Price in);
+
+Price from_itch_price(int32_t in);

@@ -2,6 +2,7 @@
 
 #include "../src/market.h"
 #include "../src/order.h"
+#include "../src/latinex_config.h"
 #include <memory>
 
 template<typename E>
@@ -52,7 +53,7 @@ std::shared_ptr<MyOrder> make_order(const std::string& symbol, bool buy, uint32_
     auto ord = std::make_shared<MyOrder>();
     *(ord) << new FIX8::TEX::Symbol(symbol)
         << new FIX8::TEX::Side( buy ? FIX8::TEX::Side_BUY : FIX8::TEX::Side_SELL)
-        << new FIX8::TEX::Price(price)
+        << new FIX8::TEX::Price(to_long_double(price))
         << new FIX8::TEX::QtyType(FIX8::TEX::QtyType_UNITS)
         << new FIX8::TEX::OrderQty(qty)
         ;
