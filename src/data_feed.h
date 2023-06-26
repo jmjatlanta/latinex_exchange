@@ -208,6 +208,10 @@ class DataFeed :
     {
         logger->debug("ItchDataFeed", "on_trade called");
         itch::trade msg;
+        msg.set_int(itch::trade::TIMESTAMP, ns_since_midnight());
+        msg.set_int(itch::trade::SHARES, qty);
+        msg.set_string(itch::trade::STOCK, book->symbol());
+        msg.set_int(itch::trade::PRICE, cost);
         send(msg);
     }
 

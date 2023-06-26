@@ -272,6 +272,7 @@ public:
             {
                 // add the book
                 auto& desired_book = books_[symbol];
+                desired_book.set_symbol(symbol);
                 desired_book.set_order_listener(this);
                 desired_book.set_trade_listener(this);
                 desired_book.set_order_book_listener(this);
