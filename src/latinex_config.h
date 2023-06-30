@@ -8,7 +8,7 @@
 
 typedef int64_t Price;
 typedef int64_t Quantity;
-
+typedef int64_t Balance;
 /***
  * Convert a price to a decimal number
  */
@@ -18,6 +18,9 @@ long double to_long_double(Price in);
  * Convert a decimal number into a price
  */
 Price to_price(long double in);
+
+Balance to_balance(long double in);
+long double from_balance(Balance in);
 
 /***
  * ITCH prices are 32 bits, with an implied fixed decimal point at a precision of 4. 

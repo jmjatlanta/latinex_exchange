@@ -45,7 +45,6 @@ liquibook::book::Price Order::price() const
     {
         return std::numeric_limits<liquibook::book::Price>::max();
     }
-    logger->debug("Order", "price() is " + std::to_string(to_price(obj->get())));
     return to_price(obj->get()); 
 }
 liquibook::book::Price Order::stop_price() const 
@@ -154,7 +153,8 @@ void Order::on_rejected(const char* reason)
 
 void Order::on_filled(liquibook::book::Quantity fill_qty, liquibook::book::Cost fill_cost)
 {
-    logger->debug("Order", "on_filled: Received event from market, sending Execution report");
+    logger->debug("Order", "on_filled: Received event from market, sending Execution report with fill_qty "
+            + std::to_string(fill_qty) + " and cost of " + std::to_string(to_long_double(fill_cost)));
     this->leaves_qty_ -= fill_qty;
     std::string msg = std::to_string(fill_qty) + " for " + std::to_string(fill_cost);
     history_.emplace_back(State::Filled, msg);

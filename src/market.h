@@ -3,6 +3,7 @@
  * The main market object
  */
 #include "logger.h"
+#include "latinex_config.h"
 #include <book/depth_order_book.h>
 #include <book/types.h>
 
@@ -85,7 +86,7 @@ public:
      * @param fill_cost the cost
      */
     virtual void on_fill(const OrderPtr& order, const OrderPtr& matched_order, 
-            liquibook::book::Quantity fill_qty, liquibook::book::Cost fill_cost)
+            liquibook::book::Quantity fill_qty, liquibook::book::Cost fill_cost) override
     {
         logger->debug("Market", "on_fill called");
         order->on_filled(fill_qty, fill_cost);
@@ -154,9 +155,11 @@ public:
      * @param qty the quantity traded
      * @param cost the trade price
      */
-    virtual void on_trade(const OrderBook* book, liquibook::book::Quantity qty, liquibook::book::Cost cost)
+    virtual void on_trade(const OrderBook* book, liquibook::book::Quantity qty, liquibook::book::Cost cost) override
     {
-        logger->debug("Market", "on_trade called");
+        logger->debug("Market", "on_trade called for " + book->symbol() 
+                + " Quantity: " + std::to_string(qty)
+                + " Cost: " + std::to_string(to_long_double(cost)));
         for(auto* l : trade_listeners_)
             l->on_trade(book, qty, cost);
     }
@@ -210,7 +213,7 @@ public:
      */
     bool add_order(OrderPtr order)
     {
-        logger->debug("Market", "Adding order " + order->order_id());
+        logger->debug("Market", "add_order: Adding order " + order->order_id());
         try
         {
             std::string symbol = order->symbol();
@@ -224,8 +227,13 @@ public:
             order->on_submitted();
             std::mutex& mut = book_mutexes_[symbol];
             std::lock_guard<std::mutex> lock(mut);
-            // note: this returns true if order was immediately matched
-            book.add(order, conditions);
+            if (book.add(order, conditions))
+            {
+                // it was added and immediately matched
+                // TODO: alert of the match
+                logger->debug("Market", "add_order: Order id " 
+                        + order->order_id() + " was immediately matched");
+            }
         }
         catch (const std::invalid_argument& ia)
         {

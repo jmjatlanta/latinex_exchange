@@ -8,9 +8,17 @@ long double to_long_double(Price in)
 
 Price to_price(long double in) 
 {
-    long double tmp = in * 1000000;
-    long double rounded = std::round(tmp);
     return (Price)(std::round(in * 1000000));
+}
+
+Balance to_balance(long double in)
+{
+    return (Balance)(std::round(in * 100));
+}
+
+long double from_balance(Balance in)
+{
+    return (double)in / 100;
 }
 
 /***
