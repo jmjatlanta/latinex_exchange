@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <string>
 
 /***
  * Quantities and prices are stored as integers. Fractions are kept to a minimum.
@@ -21,7 +22,7 @@ Price to_price(long double in);
 
 Balance to_balance(long double in);
 long double from_balance(Balance in);
-
+std::string balance_to_string(Balance in);
 /***
  * ITCH prices are 32 bits, with an implied fixed decimal point at a precision of 4. 
  * Ours are 64 bits, so we have to carefully reduce precision
