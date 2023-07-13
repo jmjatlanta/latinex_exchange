@@ -24,6 +24,8 @@ file(GLOB src
     src/main.cpp
     src/logger.cpp
     src/latinex_config.cpp
+    nasdaq_itch_ouch/src/soup_bin_connection.cpp
+    nasdaq_itch_ouch/src/soup_bin_timer.cpp
 )
 
 add_executable(latinex_exchange ${src} )

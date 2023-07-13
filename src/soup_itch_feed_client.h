@@ -1,40 +1,36 @@
 #pragma once
 
+#include "soup_bin_connection.h"
 #include "itch.h"
-#include "zmq.h"
 #include "logger.h"
 #include <thread>
 #include <vector>
 #include <stdexcept>
 
 /****
- * Reads ITCH over ZMQ
+ * Reads ITCH over SoupBinTCP
  */
 
-class ZmqItchFeedClient
+class SoupItchFeedClient : public SoupBinConnection
 {
     public:
-    ZmqItchFeedClient() : logger(latinex::Logger::getInstance()) {
-        context = zmq_init(1);
-        socket = zmq_socket(context, ZMQ_SUB);
-        if (zmq_setsockopt(socket, ZMQ_SUBSCRIBE, "", 0) != 0)
-            throw std::invalid_argument("Invalid socket option");
-        if (zmq_connect(socket, "tcp://127.0.0.1:12001") != 0)
-            throw std::invalid_argument("Unable to connect to data server");
-        msg_thread = std::thread(&ZmqItchFeedClient::run, this);
-    }
 
-    ~ZmqItchFeedClient()
+    SoupItchFeedClient(const std::string url) 
+            : SoupBinConnection(url, "username", "password"), 
+            logger(latinex::Logger::getInstance())
     {
-        shutting_down = true;
-        msg_thread.join();
-        if (socket != nullptr)
-            zmq_close(socket);
-        if (context != nullptr)
-            zmq_term(context);
     }
 
-    virtual bool is_connected() const { return socket != nullptr; }
+    virtual ~SoupItchFeedClient()
+    {
+    }
+
+    virtual void on_sequenced_data(const soupbintcp::sequenced_data& in) override
+    {
+        onMessage(in.get_message());
+    }
+
+    virtual bool is_connected() const { return status == Status::CONNECTED; }
     virtual bool onSystemEvent(const itch::system_event& in) { return true; }
     virtual bool onStockDirectory(const itch::stock_directory& in) { return true; }
     virtual bool onStockTradingAction(const itch::stock_trading_action& in) { return true; }
@@ -61,36 +57,6 @@ class ZmqItchFeedClient
             const itch::direct_listing_with_capital_raise_price_discovery& in) { return true; }
 
     protected:
-    void run()
-    {
-        while(!shutting_down)
-        {
-            size_t buf_size = 10000;
-            char buf[10000];
-            int ret_val = zmq_recv(socket, buf, buf_size, ZMQ_NOBLOCK);
-            if (ret_val > 0)
-            {
-                std::vector<uint8_t> bytes(ret_val);
-                memcpy((char*)&bytes[0], buf, ret_val); 
-                if(!onMessage(bytes))
-                    logger->error("ZmqItchFeedClient", "onMessage call returned false");
-            }
-            else
-            {
-                if (ret_val < 0 && errno != EAGAIN)
-                {
-                    logger->error("ZmqItchFeedClient", "onMessage"
-                            "DataFeedClient::run Uh Oh! ret_val was " + std::to_string(ret_val)
-                            + " and errno was " + std::to_string(errno));
-                    break;
-                }
-                else
-                {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                }
-            }
-        }
-    }
     virtual bool onMessage(const std::vector<uint8_t>& bytes)
     {
         // NOTE: This blocks the receiver until processing is complete
@@ -149,9 +115,5 @@ class ZmqItchFeedClient
         return false;
     }
 
-    std::thread msg_thread;
-    bool shutting_down = false;
-    void* context = nullptr;
-    void* socket = nullptr;
     latinex::Logger* logger;
 };

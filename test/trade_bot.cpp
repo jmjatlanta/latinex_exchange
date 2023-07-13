@@ -1,7 +1,7 @@
 #include "local_book.h"
 #include "../src/exchange_server.h"
 #include "../src/exchange_client.h"
-#include "../src/zmq_itch_feed_client.h"
+#include "soup_itch_feed_client.h"
 #include "../src/latinex_config.h"
 
 #include <thread>
@@ -13,10 +13,10 @@
 
 typedef LocalBook<Price, Quantity> TestBook;
 
-class MyDataFeedClient : public ZmqItchFeedClient, public BBOListener<Price>
+class MyDataFeedClient : public SoupItchFeedClient, public BBOListener<Price>
 {
     public:
-    MyDataFeedClient() : ZmqItchFeedClient() {}
+    MyDataFeedClient() : SoupItchFeedClient("127.0.0.1:12001") {}
     virtual ~MyDataFeedClient() {}
 
     virtual bool onAddOrder( const itch::add_order& in) override 

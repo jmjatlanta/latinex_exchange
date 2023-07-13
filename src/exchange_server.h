@@ -43,7 +43,7 @@ class ExchangeServer
 
     private:
     std::thread message_thread; // handles new sessions
-    std::unique_ptr<FIX8::ServerSessionBase> server = nullptr; // the FIX8 server (this class could be subclass of?)
+    std::unique_ptr<FIX8::ServerSessionBase> fix8Server = nullptr; // the FIX8 server (this class could be subclass of?)
     std::atomic<uint32_t> scnt = 0; // session counter
     bool shutting_down = false;
     bool listening = false;

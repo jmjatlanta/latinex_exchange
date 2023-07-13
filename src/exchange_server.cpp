@@ -1,7 +1,7 @@
 #include "exchange_server.h"
 
 ExchangeServer::ExchangeServer(const std::string& xml_file) 
-        : server( new FIX8::ServerSession<LatinexSessionServer>(
+        : fix8Server( new FIX8::ServerSession<LatinexSessionServer>(
         FIX8::TEX::ctx(), xml_file, "TEX1")),
         logger(latinex::Logger::getInstance()),
         market_(std::make_shared<latinex::Market<latinex::Order>>()),
@@ -21,7 +21,7 @@ ExchangeServer::~ExchangeServer()
             t.join();
     connectionThreads = std::vector<std::thread>();
     message_thread.join();
-    server = nullptr;
+    fix8Server = nullptr;
     logger->debug("ExchangeServer", "dtor complete");
 }
 
@@ -32,11 +32,11 @@ void ExchangeServer::run()
         listening = true;
         while(!shutting_down)
         {
-            if (!server->poll())
+            if (!fix8Server->poll())
                 continue;
             if (!shutting_down)
             {
-                connectionThreads.emplace_back(&ExchangeServer::server_process, this, server.get(), ++scnt, false);
+                connectionThreads.emplace_back(&ExchangeServer::server_process, this, fix8Server.get(), ++scnt, false);
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
         }

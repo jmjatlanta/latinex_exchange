@@ -1,17 +1,17 @@
 #include <gtest/gtest.h>
 
 #include "local_book.h"
-#include "../src/exchange_server.h"
-#include "../src/exchange_client.h"
-#include "../src/zmq_itch_feed_client.h"
-#include "../src/latinex_config.h"
+#include "exchange_server.h"
+#include "exchange_client.h"
+#include "soup_itch_feed_client.h"
+#include "latinex_config.h"
 
 typedef LocalBook<Price, Quantity> TestBook;
 
-class MyDataFeedClient : public ZmqItchFeedClient, public BBOListener<Price>
+class MyDataFeedClient : public SoupItchFeedClient, public BBOListener<Price>
 {
     public:
-    MyDataFeedClient() : ZmqItchFeedClient() {}
+    MyDataFeedClient() : SoupItchFeedClient("127.0.0.1:12001") {}
     virtual ~MyDataFeedClient() {}
 
     virtual bool onAddOrder( const itch::add_order& in) override 
@@ -160,9 +160,9 @@ TEST(Fix, OrderMatch)
     // give it a sec
     std::this_thread::sleep_for(std::chrono::seconds(1));
     EXPECT_TRUE(dataFeedClient.is_connected());
-    EXPECT_TRUE(myClient.send_order(true, 100, "ABC", 100));
-    EXPECT_TRUE(myClient.send_order(false, 100, "ABC", 100));
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    EXPECT_TRUE(myClient.send_order(true, 100, "ABC", to_price(100)));
+    EXPECT_TRUE(myClient.send_order(false, 100, "ABC", to_price(100)));
+    std::this_thread::sleep_for(std::chrono::milliseconds(800));
     EXPECT_EQ(dataFeedClient.num_orders_added, 2);
 }
 

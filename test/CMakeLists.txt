@@ -22,6 +22,8 @@ file(GLOB src
     ../src/Myfix_traits.cpp
     ../src/Myfix_types.cpp
     ../src/latinex_config.cpp
+    ../nasdaq_itch_ouch/src/soup_bin_connection.cpp
+    ../nasdaq_itch_ouch/src/soup_bin_timer.cpp
 )
 
 add_executable(test exchange.cpp fix.cpp data_feed.cpp ${src} )
@@ -31,6 +33,8 @@ target_include_directories( test PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/../nasdaq_itch_ouch/include
     ${POCO_INCLUDE_DIR}
     ${FIX8_DIR}/include
+    ../
+    ../src
 )
 
 target_link_libraries( test 
@@ -49,6 +53,8 @@ target_include_directories( trade_bot PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/../nasdaq_itch_ouch/include
     ${POCO_INCLUDE_DIR}
     ${FIX8_DIR}/include
+    ../
+    ../src
 )
 
 target_link_libraries( trade_bot

@@ -2,7 +2,7 @@
 #include "order.h"
 #include "itch.h"
 #include "logger.h"
-#include "zmq.h"
+#include "soup_bin_server.h"
 #include "latinex_config.h"
 #include <thread>
 #include <vector>
@@ -33,21 +33,12 @@ class DataFeed :
 
     DataFeed() : logger(latinex::Logger::getInstance()) 
     {
-        context = zmq_init(1);
-        if (context == nullptr)
-            throw std::invalid_argument("Could not build context");
-        socket = zmq_socket(context, ZMQ_PUB);
-        if (socket == nullptr)
-            throw std::invalid_argument("Unable to build socket");
-        zmq_bind(socket, "tcp://127.0.0.1:12001");
+        soupBinServer = new SoupBinServer<SoupBinConnection>(12001);
     }
 
     ~DataFeed()
     {
-        if (socket != nullptr)
-            zmq_close(socket);
-        if (context != nullptr)
-            zmq_term(context);
+        delete soupBinServer;
     }
 
     void subscribe_to_market(latinex::Market<T>* in)
@@ -79,8 +70,7 @@ class DataFeed :
     template<typename MSGTYPE>
     bool send(const MSGTYPE& msg)
     {
-        size_t sz = msg.get_size();
-        zmq_send(socket, msg.get_record(), sz, 0);
+        soupBinServer->send_sequenced( std::vector<unsigned char>(msg.get_record(), msg.get_record()+msg.get_size()));
         return true;
     }
 
@@ -241,8 +231,7 @@ class DataFeed :
 
 
     private:
-    void *context = nullptr;
-    void *socket = nullptr;
+    SoupBinServer<SoupBinConnection>* soupBinServer = nullptr;
     std::atomic<uint64_t> epoch_at_midnight_sec = 0;
     latinex::Logger* logger = nullptr;
 };
