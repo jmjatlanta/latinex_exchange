@@ -4,8 +4,8 @@ project(latinex_exchange)
 
 set(FIX8_DIR /home/jmjatlanta/Development/cpp/fix8_install)
 set(FIX8_LIB_DIR ${FIX8_DIR}/lib)
-set(POCO_DIR /home/jmjatlanta/Development/cpp/poco)
-set(POCO_LIB_DIR ${POCO_DIR}/cmake-build/lib)
+set(POCO_DIR /usr/lib/x86_64-linux-gnu)
+set(POCO_LIB_DIR ${POCO_DIR})
 
 add_subdirectory(liquibook)
 add_subdirectory(test)
